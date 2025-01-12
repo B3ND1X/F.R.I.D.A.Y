@@ -206,7 +206,7 @@
 
             recognition = new webkitSpeechRecognition();
             recognition.continuous = true;  // Continuous listening
-            recognition.interimResults = false;
+            recognition.interimResults = false; // Do not return partial results
             recognition.lang = "en-US";
             recognition.maxAlternatives = 1;
 
@@ -226,25 +226,24 @@
 
                 if (transcript.includes(wakeWord) && !isListeningForCommand) {
                     console.log("Wake word detected!");
+                    playWakeWordSound(); // Play activation sound
                     isListeningForCommand = true;
                     displayMessage("Listening for your command...", 'groq-response');
                     commandBuffer = '';
-                    recognition.interimResults = true;
-                    playWakeWordSound();  // Play sound
-                    return;
+                    return; // Do not process yet, continue listening
                 }
 
                 if (isListeningForCommand && transcript && transcript !== wakeWord) {
                     if (transcript.length < 3) {
-                        return;
+                        return; // Avoid sending incomplete or very short prompts
                     }
 
                     commandBuffer = transcript;
                     console.log("Captured command:", commandBuffer);
                     displayMessage("Processing your request...", 'groq-response');
-                    sendToGroq(commandBuffer);
+                    sendToGroq(commandBuffer); // Send complete command
                     commandBuffer = ''; // Reset buffer after processing
-                    isListeningForCommand = false;
+                    isListeningForCommand = false; // End listening for command
                 }
 
                 resetInactivityTimer(); // Reset inactivity timer after receiving speech
@@ -262,13 +261,6 @@
             };
 
             recognition.start();
-        }
-
-        // Function to restart speech recognition properly
-        function restartSpeechRecognition() {
-            if (!recognizing) { // Check if recognition is not already active
-                recognition.start(); // Restart only if it's not already running
-            }
         }
 
         // Function to play sound when wake word is detected
@@ -426,4 +418,3 @@
     </script>
 </body>
 </html>
-
