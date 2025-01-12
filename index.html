@@ -260,7 +260,9 @@
                 restartSpeechRecognition(); // Restart recognition when it ends
             };
 
-            recognition.start();
+            if (!recognizing) { // Only start recognition if it's not already running
+                recognition.start();
+            }
         }
 
         // Function to play sound when wake word is detected
@@ -393,10 +395,9 @@
             }
 
             // Restart speech recognition (SST)
-            if (recognizing) {
-                recognition.stop();  // Stop if it's currently recognizing
+            if (!recognizing) { // Ensure we restart only if recognition is not running
+                recognition.start();
             }
-            recognition.start();  // Restart listening to the wake word
 
             // Optionally log or perform any other reset logic
             console.log("Assistant's TTS, SST, weather, and news have been refreshed.");
