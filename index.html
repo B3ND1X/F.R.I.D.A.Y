@@ -265,6 +265,15 @@
             }
         }
 
+        // Function to restart speech recognition
+        function restartSpeechRecognition() {
+            console.log("Restarting speech recognition...");
+            if (recognition) {
+                recognition.stop(); // Stop current recognition
+                recognition.start(); // Restart recognition
+            }
+        }
+
         // Function to play sound when wake word is detected
         function playWakeWordSound() {
             const audio = new Audio('activation.wav');
