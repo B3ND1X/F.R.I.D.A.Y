@@ -224,6 +224,7 @@
                 transcript = transcript.trim().toLowerCase();
                 console.log("Transcript:", transcript);
 
+                // Detect wake word and command
                 if (transcript.includes(wakeWord) && !isListeningForCommand) {
                     console.log("Wake word detected!");
                     playWakeWordSound(); // Play activation sound
@@ -240,8 +241,18 @@
 
                     commandBuffer = transcript;
                     console.log("Captured command:", commandBuffer);
-                    displayMessage("Processing your request...", 'groq-response');
-                    sendToGroq(commandBuffer); // Send complete command
+
+                    // Check for 'what time is it' command
+                    if (commandBuffer.includes('what time is it')) {
+                        const currentTime = new Date().toLocaleTimeString();
+                        const message = `The current time is ${currentTime}.`;
+                        displayMessage(message, 'groq-response');
+                        speakText(message); // Speak the time out loud
+                    } else {
+                        displayMessage("Processing your request...", 'groq-response');
+                        sendToGroq(commandBuffer); // Send other commands to Groq
+                    }
+
                     commandBuffer = ''; // Reset buffer after processing
                     isListeningForCommand = false; // End listening for command
                 }
