@@ -139,6 +139,48 @@
         let inactivityTimeout;
         const INACTIVITY_TIMEOUT = 30000; // 30 seconds inactivity timeout
         let recognizing = false; // Flag to track recognition state
+        let alarms = []; // Array to store alarm times
+        let timers = []; // Array to store timer countdowns
+        let reminders = []; // Array to store reminders
+
+        // Function to set an alarm
+        function setAlarm(time) {
+            const alarmTime = new Date(time);
+            alarms.push(alarmTime);
+            const timeLeft = alarmTime.getTime() - Date.now();
+
+            if (timeLeft > 0) {
+                setTimeout(() => {
+                    alert(`Alarm! Time: ${alarmTime.toLocaleTimeString()}`);
+                    speakText(`The alarm for ${alarmTime.toLocaleTimeString()} has triggered.`);
+                }, timeLeft);
+            }
+        }
+
+        // Function to set a timer
+        function setTimer(minutes) {
+            const timerDuration = minutes * 60 * 1000;
+            timers.push(timerDuration);
+
+            setTimeout(() => {
+                alert(`Timer completed! ${minutes} minutes have passed.`);
+                speakText(`The timer for ${minutes} minutes has ended.`);
+            }, timerDuration);
+        }
+
+        // Function to set a reminder
+        function setReminder(time, message) {
+            const reminderTime = new Date(time);
+            reminders.push({ time: reminderTime, message: message });
+
+            const timeLeft = reminderTime.getTime() - Date.now();
+            if (timeLeft > 0) {
+                setTimeout(() => {
+                    alert(`Reminder: ${message}`);
+                    speakText(`Reminder: ${message}`);
+                }, timeLeft);
+            }
+        }
 
         // Web Audio API setup for capturing sound
         let audioContext, analyser, microphoneStream;
@@ -242,38 +284,47 @@
                     commandBuffer = transcript;
                     console.log("Captured command:", commandBuffer);
 
-                    // Check for 'what time is it' command
-                    if (commandBuffer.includes('what time is it')) {
+                    // Check for specific commands (weather, news, time, alarms, timers, reminders, etc.)
+                    if (commandBuffer.includes('what is the weather') || commandBuffer.includes('weather')) {
+                        displayMessage("Fetching the weather for you...", 'groq-response');
+                        fetchWeather();  // Fetch weather based on the user's voice command
+                    } else if (commandBuffer.includes('what is the news') || commandBuffer.includes('news')) {
+                        displayMessage("Fetching the latest news for you...", 'groq-response');
+                        fetchNews();  // Fetch news based on the user's voice command
+                    } else if (commandBuffer.includes('set an alarm') && commandBuffer.includes('for')) {
+                        const timeMatch = commandBuffer.match(/\d{1,2}(:\d{2})?\s?(AM|PM)/);
+                        if (timeMatch) {
+                            const alarmTime = timeMatch[0];
+                            setAlarm(alarmTime);
+                            displayMessage(`Alarm set for ${alarmTime}.`, 'groq-response');
+                        } else {
+                            displayMessage("Sorry, I couldn't understand the alarm time.", 'groq-response');
+                        }
+                    } else if (commandBuffer.includes('set a timer for')) {
+                        const timeMatch = commandBuffer.match(/(\d+)\s?minutes/);
+                        if (timeMatch) {
+                            const minutes = parseInt(timeMatch[1]);
+                            setTimer(minutes);
+                            displayMessage(`Timer set for ${minutes} minutes.`, 'groq-response');
+                        } else {
+                            displayMessage("Sorry, I couldn't understand the timer duration.", 'groq-response');
+                        }
+                    } else if (commandBuffer.includes('set a reminder for')) {
+                        const timeMatch = commandBuffer.match(/\d{1,2}(:\d{2})?\s?(AM|PM)/);
+                        const reminderMessage = commandBuffer.replace(/set a reminder for.*?to\s/i, '').trim();
+                        if (timeMatch && reminderMessage) {
+                            const reminderTime = timeMatch[0];
+                            setReminder(reminderTime, reminderMessage);
+                            displayMessage(`Reminder set for ${reminderTime} with message: ${reminderMessage}.`, 'groq-response');
+                        } else {
+                            displayMessage("Sorry, I couldn't understand the reminder details.", 'groq-response');
+                        }
+                    } else if (commandBuffer.includes('what time is it')) {
                         const currentTime = new Date().toLocaleTimeString();
                         const message = `The current time is ${currentTime}.`;
                         displayMessage(message, 'groq-response');
                         speakText(message); // Speak the time out loud
-                    } 
-                    // Check for setting a timer
-                    else if (commandBuffer.includes('set a timer for')) {
-                        const timeMatch = commandBuffer.match(/(\d+)\s*(minutes?|seconds?)/);
-                        if (timeMatch) {
-                            const timeValue = parseInt(timeMatch[1], 10);
-                            if (timeMatch[2].includes('minute')) {
-                                setTimer(timeValue * 60); // Convert minutes to seconds
-                            } else if (timeMatch[2].includes('second')) {
-                                setTimer(timeValue); // Seconds
-                            }
-                        }
-                    }
-                    // Check for setting a reminder
-                    else if (commandBuffer.includes('remind me in')) {
-                        const timeMatch = commandBuffer.match(/(\d+)\s*(minutes?)/);
-                        const messageMatch = commandBuffer.match(/remind me in.*? (.+)/);
-                        if (timeMatch && messageMatch) {
-                            setReminder(parseInt(timeMatch[1], 10), messageMatch[1]);
-                        }
-                    }
-                    // Check for weather
-                    else if (commandBuffer.includes('what is the weather') || commandBuffer.includes('weather')) {
-                        getWeatherForCurrentLocation();
-                    }
-                    else {
+                    } else {
                         displayMessage("Processing your request...", 'groq-response');
                         sendToGroq(commandBuffer); // Send other commands to Groq
                     }
@@ -370,68 +421,13 @@
                 const utterance = new SpeechSynthesisUtterance(text);
                 speechSynthesis.speak(utterance);
             } else {
-                console.log("TTS is not supported in this browser.");
+                console.log("TTS is not supported by this browser.");
             }
         }
 
-        // Handle inactivity timeout
-        function resetInactivityTimer() {
-            clearTimeout(inactivityTimeout);
-            inactivityTimeout = setTimeout(() => {
-                if (!recognizing) {
-                    console.log("No activity detected, stopping recognition...");
-                    recognition.stop(); // Stop recognition if idle
-                }
-            }, INACTIVITY_TIMEOUT);
-        }
-
-        // Set a timer
-        function setTimer(seconds) {
-            const milliseconds = seconds * 1000;
-            const timerMessage = `Timer set for ${seconds} seconds.`;
-
-            displayMessage(timerMessage, 'groq-response');
-            setTimeout(() => {
-                displayMessage('Time\'s up!', 'groq-response');
-                speakText('Time\'s up!');
-            }, milliseconds);
-        }
-
-        // Set a reminder
-        function setReminder(timeInMinutes, reminderMessage) {
-            const reminderTime = new Date().getTime() + timeInMinutes * 60000; // Convert minutes to milliseconds
-            localStorage.setItem('reminder', JSON.stringify({ reminderTime, reminderMessage }));
-
-            displayMessage(`Reminder set for ${timeInMinutes} minutes: ${reminderMessage}`, 'groq-response');
-
-            setTimeout(() => {
-                const reminder = JSON.parse(localStorage.getItem('reminder'));
-                if (new Date().getTime() >= reminder.reminderTime) {
-                    displayMessage(`Reminder: ${reminder.reminderMessage}`, 'groq-response');
-                    speakText(`Reminder: ${reminder.reminderMessage}`);
-                    localStorage.removeItem('reminder');
-                }
-            }, timeInMinutes * 60000);
-        }
-
-        // Get weather for current location
-        function getWeatherForCurrentLocation() {
-            if ("geolocation" in navigator) {
-                navigator.geolocation.getCurrentPosition(function(position) {
-                    const latitude = position.coords.latitude;
-                    const longitude = position.coords.longitude;
-                    fetchWeatherByCoordinates(latitude, longitude);
-                }, function(error) {
-                    displayMessage("Unable to retrieve your location. Please allow location access.", 'groq-response');
-                });
-            } else {
-                displayMessage("Geolocation is not supported by this browser.", 'groq-response');
-            }
-        }
-
-        // Fetch weather by coordinates
-        function fetchWeatherByCoordinates(latitude, longitude) {
-            const weatherUrl = `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${latitude},${longitude}&aqi=no`;
+        // Weather Fetch
+        function fetchWeather(location = 'London') {
+            const weatherUrl = `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${location}&aqi=no`;
 
             fetch(weatherUrl)
                 .then(response => response.json())
@@ -440,66 +436,56 @@
                     const description = data.current.condition.text;
                     const weatherText = `${temperature}°C, ${description}`;
                     document.getElementById('weather-info').textContent = weatherText;
-
-                    // Respond back to user
-                    const message = `The current weather at your location is ${weatherText}.`;
-                    displayMessage(message, 'groq-response');
-                    speakText(message);
+                    speakText(`The weather is ${weatherText}.`);  // Speak the weather information
                 })
                 .catch(error => {
                     console.error("Error fetching weather data:", error);
                     document.getElementById('weather-info').textContent = "Failed to load weather.";
-                    displayMessage("Failed to load weather.", 'groq-response');
+                    speakText("Sorry, I couldn't fetch the weather data.");
                 });
         }
 
-        // Fetch news
+        // News Fetch
         function fetchNews() {
-            const newsUrl = `https://content.guardianapis.com/search?api-key=${guardianApiKey}&page-size=5`;
+            const guardianUrl = `https://content.guardianapis.com/search?api-key=${guardianApiKey}`;
 
-            fetch(newsUrl)
+            fetch(guardianUrl)
                 .then(response => response.json())
                 .then(data => {
-                    const articles = data.response.results;
-                    let newsText = "Latest news:\n";
-                    articles.forEach((article, index) => {
-                        newsText += `${index + 1}. ${article.webTitle}\n`;
-                    });
-                    document.getElementById('news-info').textContent = newsText;
-
-                    // Respond back to user
-                    displayMessage(newsText, 'groq-response');
+                    if (data.response && data.response.results) {
+                        const articles = data.response.results;
+                        let newsText = '';
+                        articles.forEach((article, index) => {
+                            if (index < 3) {
+                                newsText += `<strong>${article.webTitle}</strong><br><a href="${article.webUrl}" target="_blank">${article.sectionName}</a><br><br>`;
+                            }
+                        });
+                        document.getElementById('news-info').innerHTML = newsText || "No news available.";
+                        speakText("Here are the latest news headlines. " + (newsText || "No news available."));
+                    } else {
+                        console.error("No articles available");
+                        document.getElementById('news-info').textContent = "Failed to load news.";
+                        speakText("Sorry, I couldn't fetch the news.");
+                    }
                 })
                 .catch(error => {
                     console.error("Error fetching news data:", error);
                     document.getElementById('news-info').textContent = "Failed to load news.";
-                    displayMessage("Failed to load news.", 'groq-response');
+                    speakText("Sorry, I couldn't fetch the news.");
                 });
         }
 
-        // Initialize on page load
-        window.onload = () => {
-            requestMicrophoneAccess()
-                .then(() => {
-                    initializeSpeechRecognition();
-                    fetchWeather(); // Get weather on startup
-                    fetchNews();    // Get news on startup
-                })
-                .catch((error) => {
-                    alert(error);
-                });
-        };
-
-        // Send button functionality
-        sendButton.onclick = () => {
-            handleUserInput();
-        };
-
-        // Listen for user input on the keyboard
-        userInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
+        // Attach event listeners
+        sendButton.addEventListener('click', handleUserInput);
+        userInput.addEventListener('keydown', (event) => {
+            if (event.key === 'Enter') {
                 handleUserInput();
             }
+        });
+
+        // Initialize microphone and speech recognition on page load
+        requestMicrophoneAccess().then(() => {
+            initializeSpeechRecognition();
         });
     </script>
 </body>
