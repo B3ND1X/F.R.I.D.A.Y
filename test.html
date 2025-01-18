@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>F.R.I.D.AY Functional Responsive Intelligent Assistant for You</title>
     <style>
+        /* CSS styles unchanged */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -121,7 +122,6 @@
     <div id="orb"></div> <!-- Orb in the background -->
 
     <script>
-        const apiKey = "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"; // Groq API key
         const weatherApiKey = '80445369031848dbad520436251201'; // Weather API key
         const guardianApiKey = '962cca3b-893a-4285-969b-51e44bf81615'; // The Guardian API key
         const wakeWord = "hey friday";
@@ -129,8 +129,9 @@
         let recognition;
         let isListeningForCommand = false;
         let commandBuffer = '';
-        let microphonePermissionGranted = false;
-        let lastGroqResponse = '';
+        let stopwatchTimer;
+        let stopwatchRunning = false;
+        let reminderTime = null;
         const chatBox = document.getElementById('chat-box');
         const userInput = document.getElementById('user-input');
         const sendButton = document.getElementById('send-btn');
@@ -155,7 +156,6 @@
             recognition.onstart = () => {
                 console.log("Speech recognition started.");
                 recognizing = true; // Set recognizing flag
-                resetInactivityTimer(); // Reset inactivity timer when speech starts
             };
 
             recognition.onresult = (event) => {
@@ -169,7 +169,6 @@
                 // Detect wake word and command
                 if (transcript.includes(wakeWord) && !isListeningForCommand) {
                     console.log("Wake word detected!");
-                    playWakeWordSound(); // Play activation sound
                     isListeningForCommand = true;
                     displayMessage("Listening for your command...", 'groq-response');
                     commandBuffer = '';
@@ -177,58 +176,63 @@
                 }
 
                 if (isListeningForCommand && transcript && transcript !== wakeWord) {
-                    if (transcript.length < 3) {
-                        return; // Avoid sending incomplete or very short prompts
-                    }
-
                     commandBuffer = transcript;
                     console.log("Captured command:", commandBuffer);
 
-                    // Handle commands
-                    if (commandBuffer.includes('what is the weather') || commandBuffer.includes('local weather')) {
-                        fetchWeather(); // Fetch the weather
-                        displayMessage("Fetching the weather for you...", 'groq-response');
-                    } else if (commandBuffer.includes('what is the news') || commandBuffer.includes('latest news')) {
-                        fetchNews(); // Fetch the news
-                        displayMessage("Fetching the latest news...", 'groq-response');
-                    } else if (commandBuffer.includes('set a timer for')) {
-                        const timeMatch = commandBuffer.match(/\d+/);
-                        if (timeMatch) {
-                            const timeInSeconds = parseInt(timeMatch[0]);
-                            setTimer(timeInSeconds);
-                        }
-                    } else if (commandBuffer.includes('set an alarm for')) {
-                        const timeMatch = commandBuffer.match(/\d+/);
-                        if (timeMatch) {
-                            const timeInMinutes = parseInt(timeMatch[0]);
-                            setAlarm(timeInMinutes);
-                        }
-                    } else if (commandBuffer.includes('reminder to')) {
-                        const reminderText = commandBuffer.replace('reminder to', '').trim();
-                        setReminder(reminderText);
-                    } else if (commandBuffer.includes('search the web for')) {
-                        const searchQuery = commandBuffer.replace('search the web for', '').trim();
-                        searchWeb(searchQuery);
-                    } else {
-                        displayMessage("Command not recognized. Try again.", 'groq-response');
+                    // Timer command
+                    if (commandBuffer.includes('set a timer for')) {
+                        const time = commandBuffer.replace('set a timer for', '').trim();
+                        setTimer(time);
                     }
 
-                    commandBuffer = '';
-                    isListeningForCommand = false;
-                }
+                    // Alarm command
+                    if (commandBuffer.includes('set an alarm for')) {
+                        const time = commandBuffer.replace('set an alarm for', '').trim();
+                        setAlarm(time);
+                    }
 
-                resetInactivityTimer(); // Reset inactivity timer after receiving speech
+                    // Stopwatch command
+                    if (commandBuffer.includes('start a stopwatch')) {
+                        startStopwatch();
+                    }
+
+                    if (commandBuffer.includes('stop stopwatch')) {
+                        stopStopwatch();
+                    }
+
+                    // Reminder command
+                    if (commandBuffer.includes('set a reminder to')) {
+                        setReminder(commandBuffer);
+                    }
+
+                    // Weather command
+                    if (commandBuffer.includes('what is the weather')) {
+                        fetchWeather();
+                    }
+
+                    // News command
+                    if (commandBuffer.includes('what is the news')) {
+                        fetchNews();
+                    }
+
+                    // Web search command
+                    if (commandBuffer.includes('search for')) {
+                        searchWeb(commandBuffer);
+                    }
+
+                    commandBuffer = ''; // Reset buffer after processing
+                    isListeningForCommand = false; // End listening for command
+                }
             };
 
             recognition.onerror = (event) => {
                 console.error("Speech recognition error:", event.error);
-                restartSpeechRecognition(); // Restart recognition on error
             };
 
             recognition.onend = () => {
                 console.log("Speech recognition ended.");
                 recognizing = false; // Reset recognizing flag
-                restartSpeechRecognition(); // Restart recognition when it ends
+                recognition.start(); // Restart recognition
             };
 
             if (!recognizing) { // Only start recognition if it's not already running
@@ -236,43 +240,7 @@
             }
         }
 
-        // Function to set a timer
-        function setTimer(seconds) {
-            displayMessage(`Timer set for ${seconds} seconds.`, 'groq-response');
-            setTimeout(() => {
-                displayMessage("Time's up!", 'groq-response');
-                speakText("Time's up!");
-            }, seconds * 1000);
-        }
-
-        // Function to set an alarm (in minutes)
-        function setAlarm(minutes) {
-            displayMessage(`Alarm set for ${minutes} minute(s).`, 'groq-response');
-            setTimeout(() => {
-                displayMessage("Alarm time!", 'groq-response');
-                speakText("It's time!");
-            }, minutes * 60000);
-        }
-
-        // Function to set a reminder
-        function setReminder(reminderText) {
-            displayMessage(`Reminder set: ${reminderText}`, 'groq-response');
-            const reminderTime = new Date();
-            reminderTime.setMinutes(reminderTime.getMinutes() + 1); // Set reminder for 1 minute later
-            setTimeout(() => {
-                displayMessage(`Reminder: ${reminderText}`, 'groq-response');
-                speakText(`Reminder: ${reminderText}`);
-            }, 60000);  // 1 minute reminder for now
-        }
-
-        // Function to search the web by voice
-        function searchWeb(query) {
-            const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-            window.open(searchUrl, '_blank');
-            displayMessage(`Searching the web for: ${query}`, 'groq-response');
-        }
-
-        // Display message function
+        // Display message in the chat box
         function displayMessage(content, className) {
             const messageElement = document.createElement('div');
             messageElement.classList.add('message', className);
@@ -281,8 +249,75 @@
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // Fetch weather only when asked
-        function fetchWeather(location = 'London') {
+        // Set a timer
+        function setTimer(time) {
+            const minutes = parseInt(time.split(' ')[0], 10);
+            displayMessage(`Setting a timer for ${minutes} minutes.`, 'groq-response');
+            setTimeout(() => {
+                displayMessage("Time's up! Timer finished.", 'groq-response');
+                speakText("Time's up! Timer finished.");
+            }, minutes * 60000);
+        }
+
+        // Set an alarm
+        function setAlarm(time) {
+            const [hour, minute] = time.split(':').map(Number);
+            const alarmTime = new Date();
+            alarmTime.setHours(hour, minute, 0);
+            const diff = alarmTime - new Date();
+            if (diff < 0) {
+                alarmTime.setDate(alarmTime.getDate() + 1); // Set for the next day if time has passed
+            }
+
+            displayMessage(`Setting an alarm for ${time}.`, 'groq-response');
+            setTimeout(() => {
+                displayMessage("Alarm! Wake up!", 'groq-response');
+                speakText("Alarm! Wake up!");
+            }, diff);
+        }
+
+        // Start stopwatch
+        function startStopwatch() {
+            if (!stopwatchRunning) {
+                let time = 0;
+                stopwatchTimer = setInterval(() => {
+                    time++;
+                    displayMessage(`Stopwatch: ${formatTime(time)}`, 'groq-response');
+                }, 1000);
+                stopwatchRunning = true;
+                displayMessage("Stopwatch started!", 'groq-response');
+            }
+        }
+
+        // Stop stopwatch
+        function stopStopwatch() {
+            if (stopwatchRunning) {
+                clearInterval(stopwatchTimer);
+                stopwatchRunning = false;
+                const time = Math.floor(stopwatchTimer / 1000);
+                displayMessage(`Stopwatch stopped. Time: ${formatTime(time)}`, 'groq-response');
+                speakText(`Stopwatch stopped. Time: ${formatTime(time)}`);
+            }
+        }
+
+        // Format time for stopwatch
+        function formatTime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const remainingSeconds = seconds % 60;
+            return `${hours} hours ${minutes} minutes ${remainingSeconds} seconds`;
+        }
+
+        // Set reminder
+        function setReminder(command) {
+            const time = command.replace('set a reminder to', '').trim();
+            reminderTime = time;
+            displayMessage(`Reminder set for ${time}.`, 'groq-response');
+        }
+
+        // Fetch weather
+        function fetchWeather() {
+            const location = 'London';
             const weatherUrl = `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${location}&aqi=no`;
 
             fetch(weatherUrl)
@@ -299,7 +334,7 @@
                 });
         }
 
-        // Fetch news only when asked
+        // Fetch news
         function fetchNews() {
             const guardianUrl = `https://content.guardianapis.com/search?api-key=${guardianApiKey}`;
 
@@ -326,8 +361,30 @@
                 });
         }
 
-        // Call the initialize function to start listening
-        initializeSpeechRecognition();
+        // Search web
+        function searchWeb(command) {
+            const query = command.replace('search for', '').trim();
+            if (query) {
+                const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+                window.open(searchUrl, '_blank');
+                displayMessage(`Searching for: ${query}`, 'groq-response');
+            }
+        }
+
+        // Handle user input button
+        sendButton.addEventListener('click', () => {
+            const userMessage = userInput.value.trim();
+            if (userMessage) {
+                displayMessage(userMessage, 'user-message');
+                // Here, you could send it to a backend for processing or handle directly
+                userInput.value = '';
+            }
+        });
+
+        // Initialize the assistant
+        window.onload = function() {
+            initializeSpeechRecognition();
+        };
     </script>
 </body>
 </html>
