@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>F.R.I.D.AY Functional Responsive Intelligent Assistant for You</title>
     <style>
-        /* CSS styles unchanged */
+        /* Same CSS styles as before */
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -119,7 +119,7 @@
         </div>
     </div>
 
-    <div id="orb"></div> <!-- Orb in the background -->
+    <div id="orb"></div>
 
     <script>
         const apiKey = "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"; // Groq API key
@@ -140,182 +140,79 @@
         const INACTIVITY_TIMEOUT = 30000; // 30 seconds inactivity timeout
         let recognizing = false; // Flag to track recognition state
 
-        // Web Search, Weather, and News related functionality
-        function searchWeb(query) {
-            const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
-            displayMessage(`Searching the web for "${query}"...`, 'groq-response');
-            window.open(searchUrl, '_blank');
+        // Fetch current location and weather
+        function getLocationAndFetchWeather() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+                    fetchWeatherByCoordinates(latitude, longitude);
+                }, function() {
+                    console.error("Geolocation permission denied.");
+                    fetchWeather(); // Fallback to London weather
+                });
+            } else {
+                console.error("Geolocation is not supported by this browser.");
+                fetchWeather(); // Fallback to London weather
+            }
         }
 
-        function fetchWeather(location = 'London') {
-            const weatherUrl = `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${location}&aqi=no`;
+        // Fetch weather based on coordinates
+        function fetchWeatherByCoordinates(lat, lon) {
+            const weatherUrl = `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${lat},${lon}&aqi=no`;
 
             fetch(weatherUrl)
                 .then(response => response.json())
                 .then(data => {
                     const temperature = data.current.temp_c;
                     const description = data.current.condition.text;
-                    const humidity = data.current.humidity;
-                    const weatherMessage = `Current weather in ${location}: ${temperature}°C, ${description}, Humidity: ${humidity}%`;
-                    document.getElementById('weather-info').textContent = weatherMessage;
-                    displayMessage(weatherMessage, 'groq-response');
-                    speakText(weatherMessage); // Speak the weather information
+                    const weatherText = `${temperature}°C, ${description}`;
+                    document.getElementById('weather-info').textContent = weatherText;
                 })
                 .catch(error => {
-                    console.error('Error fetching weather:', error);
-                    document.getElementById('weather-info').textContent = "Error fetching weather.";
-                    speakText("Sorry, I couldn't fetch the weather information.");
+                    console.error("Error fetching weather data:", error);
+                    document.getElementById('weather-info').textContent = "Failed to load weather.";
                 });
         }
 
+        // Fetch News
         function fetchNews() {
-            const newsUrl = `https://content.guardianapis.com/search?api-key=${guardianApiKey}`;
+            const guardianUrl = `https://content.guardianapis.com/search?api-key=${guardianApiKey}`;
 
-            fetch(newsUrl)
+            fetch(guardianUrl)
                 .then(response => response.json())
                 .then(data => {
-                    const articles = data.response.results;
-                    const newsContent = articles.slice(0, 3).map(article => article.webTitle).join('\n');
-                    document.getElementById('news-info').textContent = newsContent;
-                    displayMessage(newsContent, 'groq-response');
-                    speakText(newsContent); // Speak the latest news
+                    if (data.response && data.response.results) {
+                        const articles = data.response.results;
+                        let newsText = '';
+                        articles.forEach((article, index) => {
+                            if (index < 3) {
+                                newsText += `<strong>${article.webTitle}</strong><br><a href="${article.webUrl}" target="_blank">${article.sectionName}</a><br><br>`;
+                            }
+                        });
+                        document.getElementById('news-info').innerHTML = newsText || "No news available.";
+                    } else {
+                        console.error("No articles available");
+                        document.getElementById('news-info').textContent = "Failed to load news.";
+                    }
                 })
                 .catch(error => {
-                    console.error('Error fetching news:', error);
-                    document.getElementById('news-info').textContent = "Error fetching news.";
-                    speakText("Sorry, I couldn't fetch the news.");
+                    console.error("Error fetching news data:", error);
+                    document.getElementById('news-info').textContent = "Failed to load news.";
                 });
         }
 
-        // Initialize speech recognition
-        function initializeSpeechRecognition() {
-            if (!('webkitSpeechRecognition' in window)) {
-                alert("Speech recognition is not supported by this browser.");
-                return;
-            }
-
-            recognition = new webkitSpeechRecognition();
-            recognition.continuous = true;  // Continuous listening
-            recognition.interimResults = false; // Do not return partial results
-            recognition.lang = "en-US";
-            recognition.maxAlternatives = 1;
-
-            recognition.onstart = () => {
-                console.log("Speech recognition started.");
-                recognizing = true; // Set recognizing flag
-                resetInactivityTimer(); // Reset inactivity timer when speech starts
-            };
-
-            recognition.onresult = (event) => {
-                let transcript = '';
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    transcript += event.results[i][0].transcript;
+        // Function to set a timer
+        function setTimer(seconds) {
+            const countdown = setInterval(() => {
+                if (seconds <= 0) {
+                    clearInterval(countdown);
+                    speakText("Time's up!");
+                } else {
+                    seconds--;
                 }
-                transcript = transcript.trim().toLowerCase();
-                console.log("Transcript:", transcript);
-
-                // Detect wake word and command
-                if (transcript.includes(wakeWord) && !isListeningForCommand) {
-                    console.log("Wake word detected!");
-                    playWakeWordSound(); // Play activation sound
-                    isListeningForCommand = true;
-                    displayMessage("Listening for your command...", 'groq-response');
-                    commandBuffer = '';
-                    return; // Do not process yet, continue listening
-                }
-
-                if (isListeningForCommand && transcript && transcript !== wakeWord) {
-                    if (transcript.length < 3) {
-                        return; // Avoid sending incomplete or very short prompts
-                    }
-
-                    commandBuffer = transcript;
-                    console.log("Captured command:", commandBuffer);
-
-                    // Check for search command
-                    if (commandBuffer.includes("search the web for")) {
-                        const searchQuery = commandBuffer.replace("search the web for", "").trim();
-                        searchWeb(searchQuery);
-                    }
-                    // Check for weather query
-                    else if (commandBuffer.includes("what is the weather")) {
-                        fetchWeather();
-                    }
-                    // Check for news query
-                    else if (commandBuffer.includes("what is the news")) {
-                        fetchNews();
-                    }
-                    // Handle general queries (send to Groq)
-                    else {
-                        displayMessage("Processing your request...", 'groq-response');
-                        sendToGroq(commandBuffer); // Send to Groq for general queries
-                    }
-
-                    commandBuffer = ''; // Reset buffer after processing
-                    isListeningForCommand = false; // End listening for command
-                }
-
-                resetInactivityTimer(); // Reset inactivity timer after receiving speech
-            };
-
-            recognition.onerror = (event) => {
-                console.error("Speech recognition error:", event.error);
-                restartSpeechRecognition(); // Restart recognition on error
-            };
-
-            recognition.onend = () => {
-                console.log("Speech recognition ended.");
-                recognizing = false; // Reset recognizing flag
-                restartSpeechRecognition(); // Restart recognition when it ends
-            };
-
-            if (!recognizing) { // Only start recognition if it's not already running
-                recognition.start();
-            }
-        }
-
-        // Function to restart speech recognition
-        function restartSpeechRecognition() {
-            console.log("Restarting speech recognition...");
-            if (recognition) {
-                recognition.stop(); // Stop current recognition
-                recognition.start(); // Restart recognition
-            }
-        }
-
-        // Function to play sound when wake word is detected
-        function playWakeWordSound() {
-            const audio = new Audio('activation.wav');
-            audio.play();
-        }
-
-        // Send the user's input to Groq
-        function sendToGroq(prompt) {
-            fetch("https://api.groq.com/openai/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${apiKey}`,
-                },
-                body: JSON.stringify({
-                    model: "llama-3.3-70b-versatile",
-                    messages: [{
-                        role: "user",
-                        content: prompt
-                    }]
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                displayMessage(data.choices[0].message.content, 'groq-response');
-                console.log("Groq response:", data.choices[0].message.content);
-                lastGroqResponse = data.choices[0].message.content;
-                speakText(lastGroqResponse);
-            })
-            .catch(error => {
-                console.error("Error:", error);
-                displayMessage("Error communicating with Groq.", 'groq-response');
-            });
+            }, 1000);
+            speakText(`Timer set for ${seconds} seconds.`);
         }
 
         // Display a message in the chat box
@@ -325,6 +222,16 @@
             messageElement.textContent = content;
             chatBox.appendChild(messageElement);
             chatBox.scrollTop = chatBox.scrollHeight;
+        }
+
+        // Handle the user's text input
+        function handleUserInput() {
+            const userMessage = userInput.value.trim();
+            if (userMessage) {
+                displayMessage(userMessage, 'user-message');
+                sendToGroq(userMessage);
+                userInput.value = '';
+            }
         }
 
         // Text-to-Speech (TTS) Function
@@ -337,66 +244,13 @@
             }
         }
 
-        // Weather Fetch
-        function fetchWeather(location = 'London') {
-            const weatherUrl = `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${location}&aqi=no`;
+        // Setup and initialize the assistant when the page loads
+        window.onload = function () {
+            getLocationAndFetchWeather(); // Get location and fetch weather
+            fetchNews();
+            sendButton.addEventListener('click', handleUserInput);
+        };
 
-            fetch(weatherUrl)
-                .then(response => response.json())
-                .then(data => {
-                    const temperature = data.current.temp_c;
-                    const description = data.current.condition.text;
-                    const humidity = data.current.humidity;
-                    const weatherMessage = `Current weather in ${location}: ${temperature}°C, ${description}, Humidity: ${humidity}%`;
-                    document.getElementById('weather-info').textContent = weatherMessage;
-                    displayMessage(weatherMessage, 'groq-response');
-                    speakText(weatherMessage); // Speak the weather information
-                })
-                .catch(error => {
-                    console.error('Error fetching weather:', error);
-                    document.getElementById('weather-info').textContent = "Error fetching weather.";
-                    speakText("Sorry, I couldn't fetch the weather information.");
-                });
-        }
-
-        // Fetch news
-        function fetchNews() {
-            const newsUrl = `https://content.guardianapis.com/search?api-key=${guardianApiKey}`;
-
-            fetch(newsUrl)
-                .then(response => response.json())
-                .then(data => {
-                    const articles = data.response.results;
-                    const newsContent = articles.slice(0, 3).map(article => article.webTitle).join('\n');
-                    document.getElementById('news-info').textContent = newsContent;
-                    displayMessage(newsContent, 'groq-response');
-                    speakText(newsContent); // Speak the latest news
-                })
-                .catch(error => {
-                    console.error('Error fetching news:', error);
-                    document.getElementById('news-info').textContent = "Error fetching news.";
-                    speakText("Sorry, I couldn't fetch the news.");
-                });
-        }
-
-        // Reset inactivity timer
-        function resetInactivityTimer() {
-            clearTimeout(inactivityTimeout);
-            inactivityTimeout = setTimeout(() => {
-                console.log("No interaction detected for 30 seconds. Stopping speech recognition.");
-                recognition.stop();  // Stop recognition after 30 seconds of inactivity
-            }, INACTIVITY_TIMEOUT);
-        }
-
-        // Start speech recognition when the page loads
-        initializeSpeechRecognition();
-
-        // Handle sending button click
-        sendButton.addEventListener('click', handleUserInput);
-
-        // Fetch weather and news when the page loads
-        fetchWeather();
-        fetchNews();
     </script>
 </body>
 </html>
