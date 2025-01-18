@@ -126,7 +126,6 @@
         const weatherApiKey = '80445369031848dbad520436251201'; // Weather API key
         const guardianApiKey = '962cca3b-893a-4285-969b-51e44bf81615'; // The Guardian API key
         const wakeWord = "hey friday";
-
         let recognition;
         let isListeningForCommand = false;
         let commandBuffer = '';
@@ -139,70 +138,6 @@
         let inactivityTimeout;
         const INACTIVITY_TIMEOUT = 30000; // 30 seconds inactivity timeout
         let recognizing = false; // Flag to track recognition state
-
-        // Timer and alarm variables
-        let activeTimer = null;
-        let activeAlarm = null;
-
-        // Timer function
-        function startTimer(seconds) {
-            if (activeTimer) {
-                clearTimeout(activeTimer);
-            }
-            activeTimer = setTimeout(() => {
-                displayMessage("Time's up!", 'groq-response');
-                speakText("Time's up!");
-            }, seconds * 1000);
-            displayMessage(`Timer set for ${seconds} seconds.`, 'groq-response');
-            speakText(`Timer set for ${seconds} seconds.`);
-        }
-
-        // Alarm function
-        function setAlarm(time) {
-            const alarmTime = new Date(time).getTime();
-            const currentTime = Date.now();
-            const timeUntilAlarm = alarmTime - currentTime;
-            
-            if (activeAlarm) {
-                clearTimeout(activeAlarm);
-            }
-            activeAlarm = setTimeout(() => {
-                displayMessage("Alarm ringing!", 'groq-response');
-                speakText("Alarm ringing!");
-            }, timeUntilAlarm);
-            
-            displayMessage(`Alarm set for ${new Date(time).toLocaleTimeString()}.`, 'groq-response');
-            speakText(`Alarm set for ${new Date(time).toLocaleTimeString()}.`);
-        }
-
-        // Inactivity reset timer
-        function resetInactivityTimer() {
-            clearTimeout(inactivityTimeout);
-            inactivityTimeout = setTimeout(() => {
-                console.log("No activity detected, silently refreshing...");
-                silentRefresh();
-            }, INACTIVITY_TIMEOUT);
-        }
-
-        // Silent refresh function
-        function silentRefresh() {
-            // Refresh weather and news (fetch again or reset display)
-            fetchWeather();   // Fetch weather again to reset the data
-            fetchNews();      // Fetch news again to reset the data
-
-            // Reset Text-to-Speech (TTS) functionality if needed
-            if ('speechSynthesis' in window) {
-                speechSynthesis.cancel();  // Stop any ongoing TTS before restarting
-            }
-
-            // Restart speech recognition (SST)
-            if (!recognizing) { // Ensure we restart only if recognition is not running
-                recognition.start();
-            }
-
-            // Optionally log or perform any other reset logic
-            console.log("Assistant's TTS, SST, weather, and news have been refreshed.");
-        }
 
         // Initialize speech recognition
         function initializeSpeechRecognition() {
@@ -219,8 +154,8 @@
 
             recognition.onstart = () => {
                 console.log("Speech recognition started.");
-                recognizing = true; // Set recognizing flag
-                resetInactivityTimer(); // Reset inactivity timer when speech starts
+                recognizing = true;
+                resetInactivityTimer();
             };
 
             recognition.onresult = (event) => {
@@ -234,11 +169,11 @@
                 // Detect wake word and command
                 if (transcript.includes(wakeWord) && !isListeningForCommand) {
                     console.log("Wake word detected!");
-                    playWakeWordSound(); // Play activation sound
+                    playWakeWordSound();
                     isListeningForCommand = true;
                     displayMessage("Listening for your command...", 'groq-response');
                     commandBuffer = '';
-                    return; // Do not process yet, continue listening
+                    return; // Continue listening
                 }
 
                 if (isListeningForCommand && transcript && transcript !== wakeWord) {
@@ -249,44 +184,61 @@
                     commandBuffer = transcript;
                     console.log("Captured command:", commandBuffer);
 
-                    // Check for 'what time is it' command
-                    if (commandBuffer.includes('what time is it')) {
-                        const currentTime = new Date().toLocaleTimeString();
-                        const message = `The current time is ${currentTime}.`;
-                        displayMessage(message, 'groq-response');
-                        speakText(message); // Speak the time out loud
-                    } else if (commandBuffer.includes('set a timer')) {
-                        const match = commandBuffer.match(/(\d+)\s+seconds/);
-                        if (match && match[1]) {
-                            startTimer(parseInt(match[1], 10));
-                        }
-                    } else if (commandBuffer.includes('set an alarm for')) {
-                        const match = commandBuffer.match(/set an alarm for (.*)/);
-                        if (match && match[1]) {
-                            const alarmTime = new Date(match[1]);
-                            setAlarm(alarmTime);
-                        }
-                    } else {
+                    // Command for weather
+                    if (commandBuffer.includes('what is the weather') || commandBuffer.includes('weather')) {
+                        fetchWeather();
+                        const weatherMessage = "Here is the current weather.";
+                        displayMessage(weatherMessage, 'groq-response');
+                        speakText(weatherMessage);
+                    }
+
+                    // Command for news
+                    else if (commandBuffer.includes('what is the news') || commandBuffer.includes('news')) {
+                        fetchNews();
+                        const newsMessage = "Here are the latest news headlines.";
+                        displayMessage(newsMessage, 'groq-response');
+                        speakText(newsMessage);
+                    }
+
+                    // Command for timers (e.g., "Set a timer for 10 minutes")
+                    else if (commandBuffer.includes('set a timer') && /\d+/.test(commandBuffer)) {
+                        const minutes = commandBuffer.match(/\d+/)[0];
+                        setTimer(minutes);
+                    }
+
+                    // Command for reminders (e.g., "Remind me to buy groceries in 20 minutes")
+                    else if (commandBuffer.includes('remind me') && /\d+/.test(commandBuffer)) {
+                        const minutes = commandBuffer.match(/\d+/)[0];
+                        setReminder(minutes);
+                    }
+
+                    // Command for alarms (e.g., "Set an alarm for 8:00 AM")
+                    else if (commandBuffer.includes('set an alarm')) {
+                        setAlarm(commandBuffer);
+                    }
+
+                    // For all other commands, process them via Groq
+                    else {
                         displayMessage("Processing your request...", 'groq-response');
-                        sendToGroq(commandBuffer); // Send other commands to Groq
+                        sendToGroq(commandBuffer);
                     }
 
                     commandBuffer = ''; // Reset buffer after processing
                     isListeningForCommand = false; // End listening for command
                 }
 
-                resetInactivityTimer(); // Reset inactivity timer after receiving speech
+                resetInactivityTimer();
             };
 
             recognition.onerror = (event) => {
                 console.error("Speech recognition error:", event.error);
-                restartSpeechRecognition(); // Restart recognition on error
+                restartSpeechRecognition();
             };
 
             recognition.onend = () => {
                 console.log("Speech recognition ended.");
-                recognizing = false; // Reset recognizing flag
-                restartSpeechRecognition(); // Restart recognition when it ends
+                recognizing = false;
+                restartSpeechRecognition();
             };
 
             if (!recognizing) { // Only start recognition if it's not already running
@@ -298,8 +250,8 @@
         function restartSpeechRecognition() {
             console.log("Restarting speech recognition...");
             if (recognition) {
-                recognition.stop(); // Stop current recognition
-                recognition.start(); // Restart recognition
+                recognition.stop();
+                recognition.start();
             }
         }
 
@@ -309,7 +261,59 @@
             audio.play();
         }
 
-        // Fetch and display weather
+        // Function to set a timer
+        function setTimer(minutes) {
+            const milliseconds = minutes * 60000; // Convert minutes to milliseconds
+            setTimeout(() => {
+                const message = `Your ${minutes}-minute timer is up!`;
+                displayMessage(message, 'groq-response');
+                speakText(message);
+            }, milliseconds);
+            const message = `Setting a timer for ${minutes} minutes.`;
+            displayMessage(message, 'groq-response');
+            speakText(message);
+        }
+
+        // Function to set a reminder
+        function setReminder(minutes) {
+            const milliseconds = minutes * 60000; // Convert minutes to milliseconds
+            setTimeout(() => {
+                const message = `Reminder: You asked me to remind you in ${minutes} minutes.`;
+                displayMessage(message, 'groq-response');
+                speakText(message);
+            }, milliseconds);
+            const message = `Reminder set for ${minutes} minutes from now.`;
+            displayMessage(message, 'groq-response');
+            speakText(message);
+        }
+
+        // Function to set an alarm (for simplicity, let's use a 24-hour format)
+        function setAlarm(command) {
+            const time = command.match(/\d{1,2}(:\d{2})?\s?(am|pm)?/i); // Time format e.g., "8:00 AM"
+            if (time) {
+                const alarmTime = new Date();
+                const hours = parseInt(time[0].split(":")[0]);
+                const minutes = parseInt(time[0].split(":")[1]) || 0;
+                alarmTime.setHours(hours);
+                alarmTime.setMinutes(minutes);
+                const alarmMilliseconds = alarmTime.getTime() - Date.now();
+
+                setTimeout(() => {
+                    const message = `Your alarm for ${time[0]} is ringing!`;
+                    displayMessage(message, 'groq-response');
+                    speakText(message);
+                }, alarmMilliseconds);
+                const message = `Alarm set for ${time[0]}.`;
+                displayMessage(message, 'groq-response');
+                speakText(message);
+            } else {
+                const message = `I didn't understand the alarm time. Please say something like "Set an alarm for 8:00 AM."`;
+                displayMessage(message, 'groq-response');
+                speakText(message);
+            }
+        }
+
+        // Weather Fetch
         function fetchWeather(location = 'London') {
             const weatherUrl = `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${location}&aqi=no`;
 
@@ -327,7 +331,7 @@
                 });
         }
 
-        // Fetch and display news
+        // News Fetch - The Guardian
         function fetchNews() {
             const guardianUrl = `https://content.guardianapis.com/search?api-key=${guardianApiKey}`;
 
@@ -354,12 +358,36 @@
                 });
         }
 
-        // Setup and initialize the assistant when the page loads
+        // Inactivity reset timer
+        function resetInactivityTimer() {
+            clearTimeout(inactivityTimeout);
+            inactivityTimeout = setTimeout(() => {
+                console.log("No activity detected, silently refreshing...");
+                silentRefresh();
+            }, INACTIVITY_TIMEOUT);
+        }
+
+        // Silent refresh function
+        function silentRefresh() {
+            fetchWeather();
+            fetchNews();
+
+            if ('speechSynthesis' in window) {
+                speechSynthesis.cancel();  // Stop ongoing TTS
+            }
+
+            if (!recognizing) {
+                recognition.start();
+            }
+
+            console.log("Assistant's TTS, SST, weather, and news have been refreshed.");
+        }
+
         window.onload = function () {
             fetchWeather();
             fetchNews();
             requestMicrophoneAccess().then(() => {
-                initializeSpeechRecognition(); // Initialize speech recognition after microphone access is granted
+                initializeSpeechRecognition(); 
             }).catch((error) => {
                 console.error(error);
                 alert("Assistant cannot run without microphone access.");
