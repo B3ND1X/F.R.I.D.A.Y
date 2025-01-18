@@ -248,7 +248,32 @@
                         const message = `The current time is ${currentTime}.`;
                         displayMessage(message, 'groq-response');
                         speakText(message); // Speak the time out loud
-                    } else {
+                    } 
+                    // Check for setting a timer
+                    else if (commandBuffer.includes('set a timer for')) {
+                        const timeMatch = commandBuffer.match(/(\d+)\s*(minutes?|seconds?)/);
+                        if (timeMatch) {
+                            const timeValue = parseInt(timeMatch[1], 10);
+                            if (timeMatch[2].includes('minute')) {
+                                setTimer(timeValue * 60); // Convert minutes to seconds
+                            } else if (timeMatch[2].includes('second')) {
+                                setTimer(timeValue); // Seconds
+                            }
+                        }
+                    }
+                    // Check for setting a reminder
+                    else if (commandBuffer.includes('remind me in')) {
+                        const timeMatch = commandBuffer.match(/(\d+)\s*(minutes?)/);
+                        const messageMatch = commandBuffer.match(/remind me in.*? (.+)/);
+                        if (timeMatch && messageMatch) {
+                            setReminder(parseInt(timeMatch[1], 10), messageMatch[1]);
+                        }
+                    }
+                    // Check for weather
+                    else if (commandBuffer.includes('what is the weather') || commandBuffer.includes('weather')) {
+                        getWeatherForCurrentLocation();
+                    }
+                    else {
                         displayMessage("Processing your request...", 'groq-response');
                         sendToGroq(commandBuffer); // Send other commands to Groq
                     }
@@ -345,13 +370,68 @@
                 const utterance = new SpeechSynthesisUtterance(text);
                 speechSynthesis.speak(utterance);
             } else {
-                console.log("TTS is not supported by this browser.");
+                console.log("TTS is not supported in this browser.");
             }
         }
 
-        // Weather Fetch
-        function fetchWeather(location = 'London') {
-            const weatherUrl = `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${location}&aqi=no`;
+        // Handle inactivity timeout
+        function resetInactivityTimer() {
+            clearTimeout(inactivityTimeout);
+            inactivityTimeout = setTimeout(() => {
+                if (!recognizing) {
+                    console.log("No activity detected, stopping recognition...");
+                    recognition.stop(); // Stop recognition if idle
+                }
+            }, INACTIVITY_TIMEOUT);
+        }
+
+        // Set a timer
+        function setTimer(seconds) {
+            const milliseconds = seconds * 1000;
+            const timerMessage = `Timer set for ${seconds} seconds.`;
+
+            displayMessage(timerMessage, 'groq-response');
+            setTimeout(() => {
+                displayMessage('Time\'s up!', 'groq-response');
+                speakText('Time\'s up!');
+            }, milliseconds);
+        }
+
+        // Set a reminder
+        function setReminder(timeInMinutes, reminderMessage) {
+            const reminderTime = new Date().getTime() + timeInMinutes * 60000; // Convert minutes to milliseconds
+            localStorage.setItem('reminder', JSON.stringify({ reminderTime, reminderMessage }));
+
+            displayMessage(`Reminder set for ${timeInMinutes} minutes: ${reminderMessage}`, 'groq-response');
+
+            setTimeout(() => {
+                const reminder = JSON.parse(localStorage.getItem('reminder'));
+                if (new Date().getTime() >= reminder.reminderTime) {
+                    displayMessage(`Reminder: ${reminder.reminderMessage}`, 'groq-response');
+                    speakText(`Reminder: ${reminder.reminderMessage}`);
+                    localStorage.removeItem('reminder');
+                }
+            }, timeInMinutes * 60000);
+        }
+
+        // Get weather for current location
+        function getWeatherForCurrentLocation() {
+            if ("geolocation" in navigator) {
+                navigator.geolocation.getCurrentPosition(function(position) {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
+                    fetchWeatherByCoordinates(latitude, longitude);
+                }, function(error) {
+                    displayMessage("Unable to retrieve your location. Please allow location access.", 'groq-response');
+                });
+            } else {
+                displayMessage("Geolocation is not supported by this browser.", 'groq-response');
+            }
+        }
+
+        // Fetch weather by coordinates
+        function fetchWeatherByCoordinates(latitude, longitude) {
+            const weatherUrl = `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${latitude},${longitude}&aqi=no`;
 
             fetch(weatherUrl)
                 .then(response => response.json())
@@ -360,91 +440,67 @@
                     const description = data.current.condition.text;
                     const weatherText = `${temperature}°C, ${description}`;
                     document.getElementById('weather-info').textContent = weatherText;
+
+                    // Respond back to user
+                    const message = `The current weather at your location is ${weatherText}.`;
+                    displayMessage(message, 'groq-response');
+                    speakText(message);
                 })
                 .catch(error => {
                     console.error("Error fetching weather data:", error);
                     document.getElementById('weather-info').textContent = "Failed to load weather.";
+                    displayMessage("Failed to load weather.", 'groq-response');
                 });
         }
 
-        // News Fetch - The Guardian
+        // Fetch news
         function fetchNews() {
-            const guardianUrl = `https://content.guardianapis.com/search?api-key=${guardianApiKey}`;
+            const newsUrl = `https://content.guardianapis.com/search?api-key=${guardianApiKey}&page-size=5`;
 
-            fetch(guardianUrl)
+            fetch(newsUrl)
                 .then(response => response.json())
                 .then(data => {
-                    if (data.response && data.response.results) {
-                        const articles = data.response.results;
-                        let newsText = '';
-                        articles.forEach((article, index) => {
-                            if (index < 3) {
-                                newsText += `<strong>${article.webTitle}</strong><br><a href="${article.webUrl}" target="_blank">${article.sectionName}</a><br><br>`;
-                            }
-                        });
-                        document.getElementById('news-info').innerHTML = newsText || "No news available.";
-                    } else {
-                        console.error("No articles available");
-                        document.getElementById('news-info').textContent = "Failed to load news.";
-                    }
+                    const articles = data.response.results;
+                    let newsText = "Latest news:\n";
+                    articles.forEach((article, index) => {
+                        newsText += `${index + 1}. ${article.webTitle}\n`;
+                    });
+                    document.getElementById('news-info').textContent = newsText;
+
+                    // Respond back to user
+                    displayMessage(newsText, 'groq-response');
                 })
                 .catch(error => {
                     console.error("Error fetching news data:", error);
                     document.getElementById('news-info').textContent = "Failed to load news.";
+                    displayMessage("Failed to load news.", 'groq-response');
                 });
         }
 
-        // Inactivity reset timer
-        function resetInactivityTimer() {
-            clearTimeout(inactivityTimeout);
-            inactivityTimeout = setTimeout(() => {
-                console.log("No activity detected, silently refreshing...");
-                silentRefresh();
-            }, INACTIVITY_TIMEOUT);
-        }
-
-        // Silent refresh function
-        function silentRefresh() {
-            // Refresh weather and news (fetch again or reset display)
-            fetchWeather();   // Fetch weather again to reset the data
-            fetchNews();      // Fetch news again to reset the data
-
-            // Reset Text-to-Speech (TTS) functionality if needed
-            if ('speechSynthesis' in window) {
-                speechSynthesis.cancel();  // Stop any ongoing TTS before restarting
-            }
-
-            // Restart speech recognition (SST)
-            if (!recognizing) { // Ensure we restart only if recognition is not running
-                recognition.start();
-            }
-
-            // Optionally log or perform any other reset logic
-            console.log("Assistant's TTS, SST, weather, and news have been refreshed.");
-        }
-
-        // Setup and initialize the assistant when the page loads
-        window.onload = function () {
-            fetchWeather();
-            fetchNews();
-            requestMicrophoneAccess().then(() => {
-                initializeSpeechRecognition(); // Initialize speech recognition after microphone access is granted
-            }).catch((error) => {
-                console.error(error);
-                alert("Assistant cannot run without microphone access.");
-            });
+        // Initialize on page load
+        window.onload = () => {
+            requestMicrophoneAccess()
+                .then(() => {
+                    initializeSpeechRecognition();
+                    fetchWeather(); // Get weather on startup
+                    fetchNews();    // Get news on startup
+                })
+                .catch((error) => {
+                    alert(error);
+                });
         };
 
-        // Send button click event
-        sendButton.addEventListener('click', handleUserInput);
+        // Send button functionality
+        sendButton.onclick = () => {
+            handleUserInput();
+        };
 
-        // Press Enter to send message
-        userInput.addEventListener('keydown', (event) => {
-            if (event.key === 'Enter') {
+        // Listen for user input on the keyboard
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
                 handleUserInput();
             }
         });
-
     </script>
 </body>
 </html>
