@@ -140,94 +140,6 @@
         const INACTIVITY_TIMEOUT = 30000; // 30 seconds inactivity timeout
         let recognizing = false; // Flag to track recognition state
 
-        // Function to get the user's current location using the Geolocation API
-        function getUserLocation() {
-            return new Promise((resolve, reject) => {
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                        (position) => {
-                            const latitude = position.coords.latitude;
-                            const longitude = position.coords.longitude;
-                            resolve({ latitude, longitude });
-                        },
-                        (error) => {
-                            reject('Unable to retrieve location: ' + error.message);
-                        }
-                    );
-                } else {
-                    reject('Geolocation is not supported by this browser.');
-                }
-            });
-        }
-
-        // Weather Fetch - Using user's location
-        function fetchWeather(location = 'London') {
-            if (location === 'London') {
-                console.log("Fetching weather for London...");
-                // Fetch weather for London
-                const weatherUrl = `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=London&aqi=no`;
-                fetchWeatherData(weatherUrl);
-            } else {
-                console.log(`Fetching weather for your location: ${location}...`);
-                // Use latitude and longitude to fetch local weather
-                const weatherUrl = `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${location.latitude},${location.longitude}&aqi=no`;
-                fetchWeatherData(weatherUrl);
-            }
-        }
-
-        // Function to fetch and display weather data
-        function fetchWeatherData(url) {
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    const temperature = data.current.temp_c;
-                    const description = data.current.condition.text;
-                    const weatherText = `${temperature}°C, ${description}`;
-                    document.getElementById('weather-info').textContent = weatherText;
-                })
-                .catch(error => {
-                    console.error("Error fetching weather data:", error);
-                    document.getElementById('weather-info').textContent = "Failed to load weather.";
-                });
-        }
-
-        // Fetch user's location and then fetch the weather based on that
-        function fetchLocalWeather() {
-            getUserLocation().then(location => {
-                fetchWeather(location); // Use location to fetch local weather
-            }).catch(error => {
-                console.error(error);
-                fetchWeather('London'); // Fall back to London weather if location can't be fetched
-            });
-        }
-
-        // News Fetch - The Guardian
-        function fetchNews() {
-            const guardianUrl = `https://content.guardianapis.com/search?api-key=${guardianApiKey}`;
-
-            fetch(guardianUrl)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.response && data.response.results) {
-                        const articles = data.response.results;
-                        let newsText = '';
-                        articles.forEach((article, index) => {
-                            if (index < 3) {
-                                newsText += `<strong>${article.webTitle}</strong><br><a href="${article.webUrl}" target="_blank">${article.sectionName}</a><br><br>`;
-                            }
-                        });
-                        document.getElementById('news-info').innerHTML = newsText || "No news available.";
-                    } else {
-                        console.error("No articles available");
-                        document.getElementById('news-info').textContent = "Failed to load news.";
-                    }
-                })
-                .catch(error => {
-                    console.error("Error fetching news data:", error);
-                    document.getElementById('news-info').textContent = "Failed to load news.";
-                });
-        }
-
         // Web Audio API setup for capturing sound
         let audioContext, analyser, microphoneStream;
         let bufferLength;
@@ -336,6 +248,13 @@
                         const message = `The current time is ${currentTime}.`;
                         displayMessage(message, 'groq-response');
                         speakText(message); // Speak the time out loud
+                    } else if (commandBuffer.includes('set a timer')) {
+                        const timerDuration = parseInt(commandBuffer.match(/\d+/)[0]);
+                        startTimer(timerDuration);
+                    } else if (commandBuffer.includes('weather')) {
+                        fetchWeather(); // Fetch weather
+                    } else if (commandBuffer.includes('news')) {
+                        fetchNews(); // Fetch news
                     } else {
                         displayMessage("Processing your request...", 'groq-response');
                         sendToGroq(commandBuffer); // Send other commands to Groq
@@ -424,43 +343,88 @@
                 displayMessage(userMessage, 'user-message');
                 sendToGroq(userMessage);
                 userInput.value = '';
+                resetInactivityTimer(); // Reset inactivity timer after user input
             }
         }
 
-        // Text-to-Speech (TTS) Function
-        function speakText(text) {
-            if ('speechSynthesis' in window) {
-                const utterance = new SpeechSynthesisUtterance(text);
-                speechSynthesis.speak(utterance);
-            } else {
-                console.log("TTS is not supported by this browser.");
-            }
-        }
-
-        // Inactivity reset timer
+        // Function to reset inactivity timer
         function resetInactivityTimer() {
             clearTimeout(inactivityTimeout);
             inactivityTimeout = setTimeout(() => {
                 if (!recognizing) {
-                    console.log("No activity detected, restarting speech recognition...");
-                    restartSpeechRecognition();
+                    recognition.stop();
+                    displayMessage("I'm not listening anymore. Type or speak to reactivate me.", 'groq-response');
                 }
             }, INACTIVITY_TIMEOUT);
         }
 
-        window.onload = function () {
-            fetchLocalWeather(); // Fetch local weather based on the user's location
-            fetchNews(); // Fetch the news as usual
+        // Function to speak text aloud
+        function speakText(text) {
+            const speech = new SpeechSynthesisUtterance(text);
+            window.speechSynthesis.speak(speech);
+        }
 
-            requestMicrophoneAccess().then(() => {
-                initializeSpeechRecognition(); // Initialize speech recognition after microphone access is granted
-            }).catch((error) => {
-                console.error(error);
-                alert("Assistant cannot run without microphone access.");
-            });
+        // Start the timer based on voice input
+        function startTimer(minutes) {
+            let countdown = minutes * 60; // Convert minutes to seconds
+            displayMessage(`Timer set for ${minutes} minutes.`, 'groq-response');
+            
+            const timerInterval = setInterval(() => {
+                const mins = Math.floor(countdown / 60);
+                const secs = countdown % 60;
+                const timeDisplay = `${mins}:${secs < 10 ? '0' + secs : secs}`;
+                displayMessage(timeDisplay, 'groq-response');
 
-            sendButton.addEventListener('click', handleUserInput);
-        };
+                if (countdown <= 0) {
+                    clearInterval(timerInterval);
+                    displayMessage(`Timer finished!`, 'groq-response');
+                    speakText("Time's up!");
+                }
+
+                countdown--;
+            }, 1000);
+        }
+
+        // Fetch weather information
+        function fetchWeather() {
+            fetch(`https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=New York`)
+                .then(response => response.json())
+                .then(data => {
+                    const weatherInfo = `The current temperature in ${data.location.name} is ${data.current.temp_c}°C.`;
+                    displayMessage(weatherInfo, 'groq-response');
+                    speakText(weatherInfo);
+                })
+                .catch(error => {
+                    console.error("Error fetching weather:", error);
+                    displayMessage("Error fetching weather.", 'groq-response');
+                });
+        }
+
+        // Fetch news from The Guardian API
+        function fetchNews() {
+            fetch(`https://content.guardianapis.com/search?api-key=${guardianApiKey}`)
+                .then(response => response.json())
+                .then(data => {
+                    const news = data.response.results.slice(0, 3).map(article => article.webTitle).join(', ');
+                    const newsInfo = `Here are some of the latest news headlines: ${news}.`;
+                    displayMessage(newsInfo, 'groq-response');
+                    speakText(newsInfo);
+                })
+                .catch(error => {
+                    console.error("Error fetching news:", error);
+                    displayMessage("Error fetching news.", 'groq-response');
+                });
+        }
+
+        // Send a test message to display in chat box
+        sendButton.addEventListener('click', handleUserInput);
+
+        // Initial setup: Request microphone access and initialize speech recognition
+        requestMicrophoneAccess().then(() => {
+            initializeSpeechRecognition();
+        }).catch((err) => {
+            console.error(err);
+        });
     </script>
 </body>
 </html>
