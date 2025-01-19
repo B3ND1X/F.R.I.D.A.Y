@@ -165,6 +165,35 @@
             });
         }
 
+          // Function to process command and execute respective skill
+        function processCommand(query) {
+            // Here, call functions from the skills.js file to handle commands
+            if (query.includes("what time is it")) {
+                getCurrentTime(query);
+            } else if (query.includes("tell me a joke")) {
+                getRandomJoke(query);
+            } else if (query.includes("convert")) {
+                convertUnits(query);
+            } else if (query.includes("set a timer")) {
+                setTimer(query);
+            } else if (query.includes("set an alarm")) {
+                setAlarm(query);
+            } else if (query.includes("search for")) {
+                searchWeb(query);
+            } else if (query.includes("weather")) {
+                getWeather(query);
+            } else if (query.includes("motivate me")) {
+                getMotivation(query);
+            } else if (query.includes("news")) {
+                getLatestNews(query);
+            } else if (query.includes("translate")) {
+                translateText(query);
+            } else {
+                speakText("Sorry, I didn't understand that command.");
+            }
+        }
+
+        
         // Set up the Web Audio API analyser
         function setUpAudioAnalysis(stream) {
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
