@@ -124,9 +124,9 @@ function searchWeb(query) {
 
 // Fetch and speak the current weather
 function getWeather(query) {
-    const weatherApiKey = "80445369031848dbad520436251201"; // Replace with your API key
+    const weatherApiKey = "your_weather_api_key"; // Replace with your API key
     const city = query.replace("weather in", "").trim();
-    const url = `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${latitude},${longitude}&aqi=no`;
+    const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${weatherApiKey}&units=metric`;
 
     fetch(url)
         .then(response => response.json())
@@ -154,7 +154,7 @@ function getMotivation(query) {
 
 // Get latest news (requires API key)
 function getLatestNews(query) {
-    const guardianApiKey = "962cca3b-893a-4285-969b-51e44bf81615"; // Replace with your API key
+    const guardianApiKey = "your_guardian_api_key"; // Replace with your API key
     const url = `https://content.guardianapis.com/search?api-key=${guardianApiKey}`;
 
     fetch(url)
@@ -201,54 +201,6 @@ function translateText(query) {
             }
         })
         .catch(error => speakText("Error translating text."));
-}
-
-// Simple stopwatch
-function startStopwatch(query) {
-    let startTime = Date.now();
-    speakText("Stopwatch started.");
-
-    const stopwatchInterval = setInterval(() => {
-        const elapsedTime = Date.now() - startTime;
-        const seconds = Math.floor(elapsedTime / 1000);
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = seconds % 60;
-        speakText(`Time: ${minutes}:${remainingSeconds < 10 ? '0' + remainingSeconds : remainingSeconds}`);
-    }, 1000);
-
-    setTimeout(() => {
-        clearInterval(stopwatchInterval);
-        speakText("Stopwatch stopped.");
-    }, 60000); // Stop after 1 minute
-}
-
-// Unit converter
-function convertCurrency(query) {
-    const match = query.match(/(\d+)\s*(usd|eur|gbp)/i);
-    if (match) {
-        const amount = parseFloat(match[1]);
-        const currency = match[2].toLowerCase();
-        
-        // Placeholder conversion logic (replace with API calls as needed)
-        let convertedAmount = amount * 1.2; // Example: convert USD to EUR
-        
-        speakText(`${amount} ${currency.toUpperCase()} is approximately ${convertedAmount.toFixed(2)} EUR.`);
-    } else {
-        speakText("Please specify the amount and currency to convert.");
-    }
-}
-
-// Open a website
-function openWebsite(query) {
-    const match = query.match(/open (.*?)$/);
-    if (match) {
-        const website = match[1];
-        const url = `https://${website}.com`;
-        speakText(`Opening ${website}.`);
-        window.open(url, "_blank");
-    } else {
-        speakText("Please specify the website you want to open.");
-    }
 }
 
 // Function to speak text using TTS
