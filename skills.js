@@ -1,5 +1,10 @@
 // skill.js - Contains additional useful skills
 
+// Your API keys
+const apiKey = "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"; // Groq API key
+const weatherApiKey = '80445369031848dbad520436251201'; // Weather API key
+const guardianApiKey = '962cca3b-893a-4285-969b-51e44bf81615'; // The Guardian API key
+
 // Speak the current time
 function getCurrentTime(query) {
     const now = new Date();
@@ -122,24 +127,36 @@ function searchWeb(query) {
     }
 }
 
-// Fetch and speak the current weather
+// Fetch and speak the current local weather
 function getWeather(query) {
-    const weatherApiKey = "your_weather_api_key"; // Replace with your API key
-    const city = query.replace("weather in", "").trim();
-    const url = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${weatherApiKey}&units=metric`;
+    // Get the user's current location using the Geolocation API
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(function(position) {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
 
-    fetch(url)
-        .then(response => response.json())
-        .then(data => {
-            if (data.weather && data.main) {
-                const description = data.weather[0].description;
-                const temperature = data.main.temp;
-                speakText(`The weather in ${city} is ${description} with a temperature of ${temperature}°C.`);
-            } else {
-                speakText("Sorry, I couldn't get the weather for that location.");
-            }
-        })
-        .catch(error => speakText("Error fetching weather data."));
+            // Use the Weather API to get weather data based on latitude and longitude
+            const url = `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${latitude},${longitude}&aqi=no`;
+
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.current) {
+                        const description = data.current.condition.text;
+                        const temperature = data.current.temp_c;
+                        speakText(`The current weather is ${description} with a temperature of ${temperature}°C.`);
+                    } else {
+                        speakText("Sorry, I couldn't get the local weather.");
+                    }
+                })
+                .catch(error => speakText("Error fetching weather data."));
+        }, function(error) {
+            // Handle geolocation errors (if the user denies access or other issues)
+            speakText("Sorry, I couldn't access your location to get the weather.");
+        });
+    } else {
+        speakText("Geolocation is not supported by this browser.");
+    }
 }
 
 // Get a random motivational quote
@@ -154,10 +171,9 @@ function getMotivation(query) {
 
 // Get latest news (requires API key)
 function getLatestNews(query) {
-    const guardianApiKey = "your_guardian_api_key"; // Replace with your API key
-    const url = `https://content.guardianapis.com/search?api-key=${guardianApiKey}`;
+    const guardianUrl = `https://content.guardianapis.com/search?api-key=${guardianApiKey}`;
 
-    fetch(url)
+    fetch(guardianUrl)
         .then(response => response.json())
         .then(data => {
             const articles = data.response.results;
