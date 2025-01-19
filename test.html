@@ -121,10 +121,11 @@
 
     <div id="orb"></div> <!-- Orb in the background -->
 <script>
+    // Your API keys
     const apiKey = "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"; // Groq API key
     const weatherApiKey = '80445369031848dbad520436251201'; // Weather API key
     const guardianApiKey = '962cca3b-893a-4285-969b-51e44bf81615'; // The Guardian API key
-    const wakeWord = "hey friday";  // Wake word for voice activation
+    const wakeWord = "hey friday";
 
     let recognition;
     let isListeningForCommand = false;
@@ -162,33 +163,6 @@
                     reject("Microphone access denied: " + err);
                 });
         });
-    }
-
-    // Function to process command and execute respective skill
-    function processCommand(query) {
-        if (query.includes("what time is it")) {
-            getCurrentTime();
-        } else if (query.includes("tell me a joke")) {
-            getRandomJoke();
-        } else if (query.includes("convert")) {
-            convertUnits(query);
-        } else if (query.includes("set a timer")) {
-            setTimer(query);
-        } else if (query.includes("set an alarm")) {
-            setAlarm(query);
-        } else if (query.includes("search for")) {
-            searchWeb(query);
-        } else if (query.includes("weather")) {
-            getWeather(query);
-        } else if (query.includes("motivate me")) {
-            getMotivation(query);
-        } else if (query.includes("news")) {
-            getLatestNews(query);
-        } else if (query.includes("translate")) {
-            translateText(query);
-        } else {
-            speakText("Sorry, I didn't understand that command.");
-        }
     }
 
     // Set up the Web Audio API analyser
@@ -268,8 +242,36 @@
                 commandBuffer = transcript;
                 console.log("Captured command:", commandBuffer);
 
-                // Process the command using the skills
-                processCommand(commandBuffer);
+                // Check for 'what time is it' command
+                if (commandBuffer.includes('what time is it')) {
+                    const currentTime = new Date().toLocaleTimeString();
+                    const message = `The current time is ${currentTime}.`;
+                    displayMessage(message, 'groq-response');
+                    speakText(message); // Speak the time out loud
+                } else if (commandBuffer.includes('tell me a joke')) {
+                    getRandomJoke(commandBuffer); // Call the joke function
+                } else if (commandBuffer.includes('convert')) {
+                    convertUnits(commandBuffer); // Call the unit conversion function
+                } else if (commandBuffer.match(/\d+ [+\-*/] \d+/)) {
+                    doMath(commandBuffer); // Call the math operation function
+                } else if (commandBuffer.includes('set timer')) {
+                    setTimer(commandBuffer); // Call the timer function
+                } else if (commandBuffer.includes('set alarm')) {
+                    setAlarm(commandBuffer); // Call the alarm function
+                } else if (commandBuffer.includes('search for')) {
+                    searchWeb(commandBuffer); // Call the web search function
+                } else if (commandBuffer.includes('weather')) {
+                    getWeather(commandBuffer); // Call the weather function
+                } else if (commandBuffer.includes('news')) {
+                    getLatestNews(commandBuffer); // Call the latest news function
+                } else if (commandBuffer.includes('motivation')) {
+                    getMotivation(commandBuffer); // Call the motivation function
+                } else if (commandBuffer.includes('translate')) {
+                    translateText(commandBuffer); // Call the translation function
+                } else {
+                    displayMessage("Processing your request...", 'groq-response');
+                    sendToGroq(commandBuffer); // Send other commands to Groq
+                }
 
                 commandBuffer = ''; // Reset buffer after processing
                 isListeningForCommand = false; // End listening for command
@@ -367,190 +369,201 @@
         }
     }
 
-    // Weather Fetch with Location
-    function getWeather(query) {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition((position) => {
-                const latitude = position.coords.latitude;
-                const longitude = position.coords.longitude;
+    // Get a random joke
+    function getRandomJoke() {
+        const jokes = [
+            "Why don't skeletons fight each other? They don't have the guts.",
+            "I told my wife she was drawing her eyebrows too high. She looked surprised.",
+            "What do you get if you cross a snowman and a vampire? Frostbite!"
+        ];
+        speakText(jokes[Math.floor(Math.random() * jokes.length)]);
+    }
 
-                // Fetch weather using the latitude and longitude
-                const weatherUrl = `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${latitude},${longitude}&aqi=no`;
-
-                fetch(weatherUrl)
-                    .then(response => response.json())
-                    .then(data => {
-                        const temperature = data.current.temp_c;
-                        const description = data.current.condition.text;
-                        const weatherText = `${temperature}°C, ${description}`;
-                        displayMessage(weatherText, 'groq-response');
-                        speakText(weatherText);
-                    })
-                    .catch(error => {
-                        console.error("Error fetching weather data:", error);
-                        displayMessage("Failed to load weather.", 'groq-response');
-                    });
-            }, () => {
-                displayMessage("Geolocation access denied.", 'groq-response');
-            });
+    // Convert units (miles to kilometers)
+    function convertUnits(query) {
+        const milesToKm = 1.60934;
+        const match = query.match(/(\d+)\s*miles/);
+        if (match) {
+            const miles = parseFloat(match[1]);
+            const km = miles * milesToKm;
+            speakText(`${miles} miles is equal to ${km.toFixed(2)} kilometers.`);
         } else {
-            displayMessage("Geolocation not supported by this browser.", 'groq-response');
+            speakText("Please specify the unit you want to convert.");
         }
     }
 
-    // News Fetch - The Guardian
-    function getLatestNews() {
-        const guardianUrl = `https://content.guardianapis.com/search?api-key=${guardianApiKey}`;
+    // Perform math operation
+    function doMath(query) {
+        const regex = /(\d+)\s*([+\-*/])\s*(\d+)/;
+        const match = query.match(regex);
+        if (match) {
+            const num1 = parseFloat(match[1]);
+            const operator = match[2];
+            const num2 = parseFloat(match[3]);
+            let result;
 
-        fetch(guardianUrl)
+            switch (operator) {
+                case "+":
+                    result = num1 + num2;
+                    break;
+                case "-":
+                    result = num1 - num2;
+                    break;
+                case "*":
+                    result = num1 * num2;
+                    break;
+                case "/":
+                    result = num1 / num2;
+                    break;
+            }
+            speakText(`The result is ${result}`);
+        } else {
+            speakText("Sorry, I couldn't understand the math query.");
+        }
+    }
+
+    // Set a timer
+    function setTimer(query) {
+        const match = query.match(/(\d+)\s*minutes/);
+        if (match) {
+            const minutes = parseInt(match[1]);
+            const milliseconds = minutes * 60000;
+            speakText(`Timer set for ${minutes} minutes.`);
+            setTimeout(() => {
+                speakText("Time's up!");
+            }, milliseconds);
+        } else {
+            speakText("Please specify the timer duration.");
+        }
+    }
+
+    // Set an alarm (in 24-hour format)
+    function setAlarm(query) {
+        const match = query.match(/set alarm for (\d{1,2}):(\d{2})/);
+        if (match) {
+            const hours = parseInt(match[1]);
+            const minutes = parseInt(match[2]);
+            const alarmTime = new Date();
+            alarmTime.setHours(hours);
+            alarmTime.setMinutes(minutes);
+            alarmTime.setSeconds(0);
+            const timeToAlarm = alarmTime.getTime() - Date.now();
+            speakText(`Alarm set for ${hours}:${minutes}`);
+            setTimeout(() => {
+                speakText("Alarm! Time to wake up.");
+            }, timeToAlarm);
+        } else {
+            speakText("Please specify a valid time for the alarm.");
+        }
+    }
+
+    // Search the web
+    function searchWeb(query) {
+        const searchQuery = query.replace("search for", "").trim();
+        if (searchQuery) {
+            window.open(`https://www.google.com/search?q=${searchQuery}`);
+            speakText(`Searching for ${searchQuery}`);
+        } else {
+            speakText("Please specify what you'd like to search for.");
+        }
+    }
+
+    // Get current weather
+    function getWeather(query) {
+        const city = query.replace("weather in", "").trim();
+        if (city) {
+            fetch(`https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${city}`)
+                .then(response => response.json())
+                .then(data => {
+                    const weatherInfo = `The weather in ${data.location.name} is ${data.current.temp_c}°C with ${data.current.condition.text}.`;
+                    speakText(weatherInfo);
+                })
+                .catch(error => {
+                    speakText("Sorry, I couldn't fetch the weather details.");
+                });
+        } else {
+            speakText("Please specify the city for the weather.");
+        }
+    }
+
+    // Get the latest news
+    function getLatestNews() {
+        fetch(`https://content.guardianapis.com/search?api-key=${guardianApiKey}&page-size=5`)
             .then(response => response.json())
             .then(data => {
-                if (data.response && data.response.results) {
-                    const articles = data.response.results;
-                    let newsText = '';
-                    articles.forEach((article, index) => {
-                        if (index < 3) {
-                            newsText += `<strong>${article.webTitle}</strong><br><a href="${article.webUrl}" target="_blank">${article.sectionName}</a><br><br>`;
-                        }
-                    });
-                    document.getElementById('news-info').innerHTML = newsText || "No news available.";
+                const articles = data.response.results;
+                if (articles.length > 0) {
+                    const newsSummary = articles.map(article => `${article.webTitle}`).join(". ");
+                    speakText(`Here are the latest news: ${newsSummary}`);
                 } else {
-                    console.error("No articles available");
-                    document.getElementById('news-info').textContent = "Failed to load news.";
+                    speakText("Sorry, I couldn't fetch the latest news.");
                 }
             })
             .catch(error => {
-                console.error("Error fetching news data:", error);
-                document.getElementById('news-info').textContent = "Failed to load news.";
+                speakText("Sorry, I couldn't fetch the latest news.");
             });
     }
 
-    // Motivation Fetch
+    // Get motivational quote
     function getMotivation() {
-        const quotes = [
-            "Believe in yourself and all that you are.",
-            "You are capable of more than you know.",
-            "The only way to do great work is to love what you do."
+        const motivation = [
+            "The only way to do great work is to love what you do.",
+            "Success is not final, failure is not fatal: It is the courage to continue that counts.",
+            "Believe you can and you're halfway there."
         ];
-        const quote = quotes[Math.floor(Math.random() * quotes.length)];
-        displayMessage(quote, 'groq-response');
-        speakText(quote);
+        speakText(motivation[Math.floor(Math.random() * motivation.length)]);
     }
 
-    // Unit Conversion
-    function convertUnits(query) {
-        // Example: "convert 100 kilometers to miles"
-        const regex = /convert (\d+)\s+(\w+)\s+to\s+(\w+)/i;
-        const match = query.match(regex);
-        
+    // Translate text
+    function translateText(query) {
+        const match = query.match(/translate (.*) to (.*)/);
         if (match) {
-            const value = parseFloat(match[1]);
-            const fromUnit = match[2].toLowerCase();
-            const toUnit = match[3].toLowerCase();
-            
-            let conversionResult;
-
-            if (fromUnit === "kilometers" && toUnit === "miles") {
-                conversionResult = value * 0.621371;
-            } else if (fromUnit === "miles" && toUnit === "kilometers") {
-                conversionResult = value / 0.621371;
-            } else if (fromUnit === "celsius" && toUnit === "fahrenheit") {
-                conversionResult = (value * 9/5) + 32;
-            } else if (fromUnit === "fahrenheit" && toUnit === "celsius") {
-                conversionResult = (value - 32) * 5/9;
-            }
-
-            if (conversionResult !== undefined) {
-                const message = `${value} ${fromUnit} is equal to ${conversionResult} ${toUnit}.`;
-                displayMessage(message, 'groq-response');
-                speakText(message);
-            } else {
-                displayMessage("Sorry, I couldn't convert those units.", 'groq-response');
-                speakText("Sorry, I couldn't convert those units.");
-            }
+            const text = match[1];
+            const language = match[2];
+            const targetLanguage = language.toLowerCase();
+            speakText(`Translating "${text}" to ${targetLanguage}`);
+            // Use a translation API or logic here for actual translation
         } else {
-            displayMessage("Please provide a valid unit conversion command.", 'groq-response');
-            speakText("Please provide a valid unit conversion command.");
+            speakText("Sorry, I couldn't understand the translation request.");
         }
     }
 
-    // Set Timer (Real Implementation)
-    function setTimer(query) {
-        const regex = /set a timer for (\d+) (minutes|seconds)/i;
-        const match = query.match(regex);
+    // Inactivity timeout handling
+    function resetInactivityTimer() {
+        if (inactivityTimeout) {
+            clearTimeout(inactivityTimeout); // Clear previous timeout
+        }
+        inactivityTimeout = setTimeout(() => {
+            console.log("User has been inactive for too long.");
+            stopRecognition();
+        }, INACTIVITY_TIMEOUT); // Stop recognition after the defined timeout
+    }
 
-        if (match) {
-            const time = parseInt(match[1]);
-            const unit = match[2];
-            let timeInMs = unit === "minutes" ? time * 60 * 1000 : time * 1000;
-            
-            setTimeout(() => {
-                const message = `Your ${time} ${unit} timer has finished!`;
-                displayMessage(message, 'groq-response');
-                speakText(message);
-            }, timeInMs);
-
-            const message = `Timer set for ${time} ${unit}.`;
-            displayMessage(message, 'groq-response');
-            speakText(message);
-        } else {
-            displayMessage("Please specify a valid time format, e.g., 'set a timer for 5 minutes'.", 'groq-response');
-            speakText("Please specify a valid time format.");
+    // Stop speech recognition if inactivity timeout occurs
+    function stopRecognition() {
+        if (recognizing) {
+            recognition.stop();
+            recognizing = false;
         }
     }
 
-    // Set Alarm (Real Implementation)
-    function setAlarm(query) {
-        const regex = /set an alarm for (\d{1,2}):(\d{2})(?: (AM|PM))?/i;
-        const match = query.match(regex);
-
-        if (match) {
-            let hours = parseInt(match[1]);
-            let minutes = parseInt(match[2]);
-            let period = match[3] || "AM";
-            
-            if (period === "PM" && hours !== 12) hours += 12;
-            if (period === "AM" && hours === 12) hours = 0;
-
-            const now = new Date();
-            const alarmTime = new Date(now.setHours(hours, minutes, 0, 0));
-
-            const timeUntilAlarm = alarmTime - Date.now();
-
-            if (timeUntilAlarm > 0) {
-                setTimeout(() => {
-                    const message = `Your alarm for ${match[1]}:${match[2]} ${period} has gone off!`;
-                    displayMessage(message, 'groq-response');
-                    speakText(message);
-                }, timeUntilAlarm);
-                
-                const message = `Alarm set for ${match[1]}:${match[2]} ${period}.`;
-                displayMessage(message, 'groq-response');
-                speakText(message);
-            } else {
-                displayMessage("The alarm time has already passed. Please set a future time.", 'groq-response');
-                speakText("The alarm time has already passed. Please set a future time.");
-            }
-        } else {
-            displayMessage("Please specify a valid time format, e.g., 'set an alarm for 7:30 PM'.", 'groq-response');
-            speakText("Please specify a valid time format.");
-        }
-    }
-
-    // Setup and initialize the assistant when the page loads
-    window.onload = function () {
-        getWeather();    // Fetch weather when the page loads
-        getLatestNews(); // Fetch latest news when the page loads
+    // Start speech recognition on page load
+    document.addEventListener('DOMContentLoaded', () => {
         requestMicrophoneAccess().then(() => {
-            initializeSpeechRecognition(); // Initialize speech recognition after microphone access is granted
-        }).catch((error) => {
+            initializeSpeechRecognition();
+        }).catch(error => {
             console.error(error);
-            alert("Assistant cannot run without microphone access.");
         });
 
         sendButton.addEventListener('click', handleUserInput);
-    };
+        userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleUserInput();
+            }
+        });
+    });
 </script>
+
 
 
 </body>
