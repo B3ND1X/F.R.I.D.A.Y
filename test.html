@@ -124,7 +124,7 @@
     const apiKey = "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"; // Groq API key
     const weatherApiKey = '80445369031848dbad520436251201'; // Weather API key
     const guardianApiKey = '962cca3b-893a-4285-969b-51e44bf81615'; // The Guardian API key
-    const wakeWord = "hey friday";
+    const wakeWord = "hey friday";  // Wake word for voice activation
 
     let recognition;
     let isListeningForCommand = false;
@@ -368,7 +368,7 @@
     }
 
     // Weather Fetch with Location
-    function fetchWeather() {
+    function getWeather(query) {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition((position) => {
                 const latitude = position.coords.latitude;
@@ -383,22 +383,23 @@
                         const temperature = data.current.temp_c;
                         const description = data.current.condition.text;
                         const weatherText = `${temperature}°C, ${description}`;
-                        document.getElementById('weather-info').textContent = weatherText;
+                        displayMessage(weatherText, 'groq-response');
+                        speakText(weatherText);
                     })
                     .catch(error => {
                         console.error("Error fetching weather data:", error);
-                        document.getElementById('weather-info').textContent = "Failed to load weather.";
+                        displayMessage("Failed to load weather.", 'groq-response');
                     });
             }, () => {
-                document.getElementById('weather-info').textContent = "Geolocation access denied.";
+                displayMessage("Geolocation access denied.", 'groq-response');
             });
         } else {
-            document.getElementById('weather-info').textContent = "Geolocation not supported by this browser.";
+            displayMessage("Geolocation not supported by this browser.", 'groq-response');
         }
     }
 
     // News Fetch - The Guardian
-    function fetchNews() {
+    function getLatestNews() {
         const guardianUrl = `https://content.guardianapis.com/search?api-key=${guardianApiKey}`;
 
         fetch(guardianUrl)
@@ -424,7 +425,7 @@
             });
     }
 
-    // Get Motivation Quote
+    // Motivation Fetch
     function getMotivation() {
         const quotes = [
             "Believe in yourself and all that you are.",
@@ -436,52 +437,110 @@
         speakText(quote);
     }
 
-    // Translate Text (Mock example)
-    function translateText(query) {
-        const translatedText = query.replace("translate", "").trim(); // Just a mock
-        const message = `Translated text: ${translatedText}`;
-        displayMessage(message, 'groq-response');
-        speakText(message);
-    }
-
-    // Convert Units (Mock example)
+    // Unit Conversion
     function convertUnits(query) {
-        const message = "Unit conversion is not available yet!";
-        displayMessage(message, 'groq-response');
-        speakText(message);
+        // Example: "convert 100 kilometers to miles"
+        const regex = /convert (\d+)\s+(\w+)\s+to\s+(\w+)/i;
+        const match = query.match(regex);
+        
+        if (match) {
+            const value = parseFloat(match[1]);
+            const fromUnit = match[2].toLowerCase();
+            const toUnit = match[3].toLowerCase();
+            
+            let conversionResult;
+
+            if (fromUnit === "kilometers" && toUnit === "miles") {
+                conversionResult = value * 0.621371;
+            } else if (fromUnit === "miles" && toUnit === "kilometers") {
+                conversionResult = value / 0.621371;
+            } else if (fromUnit === "celsius" && toUnit === "fahrenheit") {
+                conversionResult = (value * 9/5) + 32;
+            } else if (fromUnit === "fahrenheit" && toUnit === "celsius") {
+                conversionResult = (value - 32) * 5/9;
+            }
+
+            if (conversionResult !== undefined) {
+                const message = `${value} ${fromUnit} is equal to ${conversionResult} ${toUnit}.`;
+                displayMessage(message, 'groq-response');
+                speakText(message);
+            } else {
+                displayMessage("Sorry, I couldn't convert those units.", 'groq-response');
+                speakText("Sorry, I couldn't convert those units.");
+            }
+        } else {
+            displayMessage("Please provide a valid unit conversion command.", 'groq-response');
+            speakText("Please provide a valid unit conversion command.");
+        }
     }
 
-    // Set Timer (Mock example)
+    // Set Timer (Real Implementation)
     function setTimer(query) {
-        const message = "Timer is set for 5 minutes!";
-        displayMessage(message, 'groq-response');
-        speakText(message);
+        const regex = /set a timer for (\d+) (minutes|seconds)/i;
+        const match = query.match(regex);
+
+        if (match) {
+            const time = parseInt(match[1]);
+            const unit = match[2];
+            let timeInMs = unit === "minutes" ? time * 60 * 1000 : time * 1000;
+            
+            setTimeout(() => {
+                const message = `Your ${time} ${unit} timer has finished!`;
+                displayMessage(message, 'groq-response');
+                speakText(message);
+            }, timeInMs);
+
+            const message = `Timer set for ${time} ${unit}.`;
+            displayMessage(message, 'groq-response');
+            speakText(message);
+        } else {
+            displayMessage("Please specify a valid time format, e.g., 'set a timer for 5 minutes'.", 'groq-response');
+            speakText("Please specify a valid time format.");
+        }
     }
 
-    // Set Alarm (Mock example)
+    // Set Alarm (Real Implementation)
     function setAlarm(query) {
-        const message = "Alarm is set for 7:00 AM!";
-        displayMessage(message, 'groq-response');
-        speakText(message);
-    }
+        const regex = /set an alarm for (\d{1,2}):(\d{2})(?: (AM|PM))?/i;
+        const match = query.match(regex);
 
-    // Silent refresh function
-    function silentRefresh() {
-        fetchWeather();   // Fetch weather again to reset the data
-        fetchNews();      // Fetch news again to reset the data
-        if ('speechSynthesis' in window) {
-            speechSynthesis.cancel();  // Stop any ongoing TTS before restarting
+        if (match) {
+            let hours = parseInt(match[1]);
+            let minutes = parseInt(match[2]);
+            let period = match[3] || "AM";
+            
+            if (period === "PM" && hours !== 12) hours += 12;
+            if (period === "AM" && hours === 12) hours = 0;
+
+            const now = new Date();
+            const alarmTime = new Date(now.setHours(hours, minutes, 0, 0));
+
+            const timeUntilAlarm = alarmTime - Date.now();
+
+            if (timeUntilAlarm > 0) {
+                setTimeout(() => {
+                    const message = `Your alarm for ${match[1]}:${match[2]} ${period} has gone off!`;
+                    displayMessage(message, 'groq-response');
+                    speakText(message);
+                }, timeUntilAlarm);
+                
+                const message = `Alarm set for ${match[1]}:${match[2]} ${period}.`;
+                displayMessage(message, 'groq-response');
+                speakText(message);
+            } else {
+                displayMessage("The alarm time has already passed. Please set a future time.", 'groq-response');
+                speakText("The alarm time has already passed. Please set a future time.");
+            }
+        } else {
+            displayMessage("Please specify a valid time format, e.g., 'set an alarm for 7:30 PM'.", 'groq-response');
+            speakText("Please specify a valid time format.");
         }
-        if (!recognizing) { // Ensure we restart only if recognition is not running
-            recognition.start();
-        }
-        console.log("Assistant's TTS, SST, weather, and news have been refreshed.");
     }
 
     // Setup and initialize the assistant when the page loads
     window.onload = function () {
-        fetchWeather();
-        fetchNews();
+        getWeather();    // Fetch weather when the page loads
+        getLatestNews(); // Fetch latest news when the page loads
         requestMicrophoneAccess().then(() => {
             initializeSpeechRecognition(); // Initialize speech recognition after microphone access is granted
         }).catch((error) => {
@@ -492,6 +551,7 @@
         sendButton.addEventListener('click', handleUserInput);
     };
 </script>
+
 
 </body>
 </html>
