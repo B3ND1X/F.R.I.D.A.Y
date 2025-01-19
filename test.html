@@ -488,81 +488,78 @@
 
     // Get the latest news
     function getLatestNews() {
-        fetch(`https://content.guardianapis.com/search?api-key=${guardianApiKey}&page-size=5`)
+        fetch(`https://content.guardianapis.com/search?api-key=${guardianApiKey}`)
             .then(response => response.json())
             .then(data => {
                 const articles = data.response.results;
-                if (articles.length > 0) {
-                    const newsSummary = articles.map(article => `${article.webTitle}`).join(". ");
-                    speakText(`Here are the latest news: ${newsSummary}`);
-                } else {
-                    speakText("Sorry, I couldn't fetch the latest news.");
-                }
+                const topArticle = articles[0];
+                const newsInfo = `Latest news: ${topArticle.webTitle} - ${topArticle.webUrl}`;
+                speakText(newsInfo);
             })
             .catch(error => {
-                speakText("Sorry, I couldn't fetch the latest news.");
+                speakText("Sorry, I couldn't fetch the news.");
             });
     }
 
-    // Get motivational quote
+    // Get motivation
     function getMotivation() {
-        const motivation = [
-            "The only way to do great work is to love what you do.",
-            "Success is not final, failure is not fatal: It is the courage to continue that counts.",
-            "Believe you can and you're halfway there."
+        const quotes = [
+            "The best time to plant a tree was 20 years ago. The second best time is now.",
+            "Don't watch the clock; do what it does. Keep going.",
+            "Success is not final, failure is not fatal: It is the courage to continue that counts."
         ];
-        speakText(motivation[Math.floor(Math.random() * motivation.length)]);
+        speakText(quotes[Math.floor(Math.random() * quotes.length)]);
     }
 
     // Translate text
     function translateText(query) {
-        const match = query.match(/translate (.*) to (.*)/);
+        const match = query.match(/translate (.+) to (.+)/);
         if (match) {
-            const text = match[1];
-            const language = match[2];
-            const targetLanguage = language.toLowerCase();
-            speakText(`Translating "${text}" to ${targetLanguage}`);
-            // Use a translation API or logic here for actual translation
+            const textToTranslate = match[1];
+            const targetLanguage = match[2];
+            fetch(`https://translation.googleapis.com/language/translate/v2?key=YOUR_API_KEY`, {
+                method: 'POST',
+                body: JSON.stringify({
+                    q: textToTranslate,
+                    target: targetLanguage
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                const translatedText = data.data.translations[0].translatedText;
+                speakText(`Translated text: ${translatedText}`);
+            })
+            .catch(error => {
+                speakText("Sorry, I couldn't translate the text.");
+            });
         } else {
-            speakText("Sorry, I couldn't understand the translation request.");
+            speakText("Please provide text and the target language for translation.");
         }
     }
 
-    // Inactivity timeout handling
+    // Reset inactivity timer
     function resetInactivityTimer() {
-        if (inactivityTimeout) {
-            clearTimeout(inactivityTimeout); // Clear previous timeout
-        }
+        clearTimeout(inactivityTimeout);
         inactivityTimeout = setTimeout(() => {
-            console.log("User has been inactive for too long.");
-            stopRecognition();
-        }, INACTIVITY_TIMEOUT); // Stop recognition after the defined timeout
+            console.log("Inactivity detected, stopping speech recognition.");
+            if (recognizing) {
+                recognition.stop();
+            }
+        }, INACTIVITY_TIMEOUT);
     }
 
-    // Stop speech recognition if inactivity timeout occurs
-    function stopRecognition() {
-        if (recognizing) {
-            recognition.stop();
-            recognizing = false;
-        }
-    }
-
-    // Start speech recognition on page load
-    document.addEventListener('DOMContentLoaded', () => {
+    // Start listening for commands once page is loaded
+    window.onload = () => {
         requestMicrophoneAccess().then(() => {
             initializeSpeechRecognition();
-        }).catch(error => {
-            console.error(error);
+        }).catch((err) => {
+            console.log("Error initializing microphone access:", err);
         });
 
         sendButton.addEventListener('click', handleUserInput);
-        userInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                handleUserInput();
-            }
-        });
-    });
+    }
 </script>
+
 
 
 
