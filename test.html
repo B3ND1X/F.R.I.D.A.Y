@@ -425,34 +425,81 @@
         }
     }
 
-// Get current weather
+// Get current weather based on the user's current location
 function getWeather(query) {
-    const city = query.replace("weather in", "").trim();
-    if (city) {
-        fetch(`https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${city}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data && data.location && data.current) {
-                    const weatherInfo = `
-                        The weather in ${data.location.name} is ${data.current.temp_c}°C with ${data.current.condition.text}.
-                    `;
-                    // Display weather info in the DOM
-                    document.getElementById('weather-info').textContent = weatherInfo;
-                    speakText(weatherInfo);
-                } else {
-                    const errorMessage = "Sorry, I couldn't fetch the weather details.";
-                    document.getElementById('weather-info').textContent = errorMessage;
-                    speakText(errorMessage);
-                }
-            })
-            .catch(error => {
-                console.error("Error fetching weather:", error);
+    // If the user has specified a city, fetch weather for that city
+    if (query.includes("weather in")) {
+        const city = query.replace("weather in", "").trim();
+        fetchWeatherByCity(city);
+    }
+    // If the user wants the weather for their current location
+    else if (query.includes("current weather")) {
+        getCurrentLocationWeather();
+    }
+}
+
+// Fetch weather by city name
+function fetchWeatherByCity(city) {
+    fetch(`https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${city}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.location && data.current) {
+                const weatherInfo = `
+                    The weather in ${data.location.name} is ${data.current.temp_c}°C with ${data.current.condition.text}.
+                `;
+                // Display weather info in the DOM
+                document.getElementById('weather-info').textContent = weatherInfo;
+                speakText(weatherInfo);
+            } else {
                 const errorMessage = "Sorry, I couldn't fetch the weather details.";
                 document.getElementById('weather-info').textContent = errorMessage;
                 speakText(errorMessage);
-            });
+            }
+        })
+        .catch(error => {
+            console.error("Error fetching weather:", error);
+            const errorMessage = "Sorry, I couldn't fetch the weather details.";
+            document.getElementById('weather-info').textContent = errorMessage;
+            speakText(errorMessage);
+        });
+}
+
+// Fetch weather for the current location using Geolocation API
+function getCurrentLocationWeather() {
+    if ("geolocation" in navigator) {
+        navigator.geolocation.getCurrentPosition((position) => {
+            const latitude = position.coords.latitude;
+            const longitude = position.coords.longitude;
+
+            fetch(`https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${latitude},${longitude}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.location && data.current) {
+                        const weatherInfo = `
+                            The weather in your current location is ${data.current.temp_c}°C with ${data.current.condition.text}.
+                        `;
+                        // Display weather info in the DOM
+                        document.getElementById('weather-info').textContent = weatherInfo;
+                        speakText(weatherInfo);
+                    } else {
+                        const errorMessage = "Sorry, I couldn't fetch the weather details.";
+                        document.getElementById('weather-info').textContent = errorMessage;
+                        speakText(errorMessage);
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching weather:", error);
+                    const errorMessage = "Sorry, I couldn't fetch the weather details.";
+                    document.getElementById('weather-info').textContent = errorMessage;
+                    speakText(errorMessage);
+                });
+        }, (error) => {
+            const errorMessage = "Unable to retrieve your location.";
+            document.getElementById('weather-info').textContent = errorMessage;
+            speakText(errorMessage);
+        });
     } else {
-        const errorMessage = "Please specify the city for the weather.";
+        const errorMessage = "Geolocation is not supported by your browser.";
         document.getElementById('weather-info').textContent = errorMessage;
         speakText(errorMessage);
     }
