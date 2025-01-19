@@ -167,9 +167,9 @@
     // Function to process command and execute respective skill
     function processCommand(query) {
         if (query.includes("what time is it")) {
-            getCurrentTime(query);
+            getCurrentTime();
         } else if (query.includes("tell me a joke")) {
-            getRandomJoke(query);
+            getRandomJoke();
         } else if (query.includes("convert")) {
             convertUnits(query);
         } else if (query.includes("set a timer")) {
@@ -424,32 +424,57 @@
             });
     }
 
-    // Inactivity reset timer
-    function resetInactivityTimer() {
-        clearTimeout(inactivityTimeout);
-        inactivityTimeout = setTimeout(() => {
-            console.log("No activity detected, silently refreshing...");
-            silentRefresh();
-        }, INACTIVITY_TIMEOUT);
+    // Get Motivation Quote
+    function getMotivation() {
+        const quotes = [
+            "Believe in yourself and all that you are.",
+            "You are capable of more than you know.",
+            "The only way to do great work is to love what you do."
+        ];
+        const quote = quotes[Math.floor(Math.random() * quotes.length)];
+        displayMessage(quote, 'groq-response');
+        speakText(quote);
+    }
+
+    // Translate Text (Mock example)
+    function translateText(query) {
+        const translatedText = query.replace("translate", "").trim(); // Just a mock
+        const message = `Translated text: ${translatedText}`;
+        displayMessage(message, 'groq-response');
+        speakText(message);
+    }
+
+    // Convert Units (Mock example)
+    function convertUnits(query) {
+        const message = "Unit conversion is not available yet!";
+        displayMessage(message, 'groq-response');
+        speakText(message);
+    }
+
+    // Set Timer (Mock example)
+    function setTimer(query) {
+        const message = "Timer is set for 5 minutes!";
+        displayMessage(message, 'groq-response');
+        speakText(message);
+    }
+
+    // Set Alarm (Mock example)
+    function setAlarm(query) {
+        const message = "Alarm is set for 7:00 AM!";
+        displayMessage(message, 'groq-response');
+        speakText(message);
     }
 
     // Silent refresh function
     function silentRefresh() {
-        // Refresh weather and news (fetch again or reset display)
         fetchWeather();   // Fetch weather again to reset the data
         fetchNews();      // Fetch news again to reset the data
-
-        // Reset Text-to-Speech (TTS) functionality if needed
         if ('speechSynthesis' in window) {
             speechSynthesis.cancel();  // Stop any ongoing TTS before restarting
         }
-
-        // Restart speech recognition (SST)
         if (!recognizing) { // Ensure we restart only if recognition is not running
             recognition.start();
         }
-
-        // Optionally log or perform any other reset logic
         console.log("Assistant's TTS, SST, weather, and news have been refreshed.");
     }
 
@@ -467,5 +492,6 @@
         sendButton.addEventListener('click', handleUserInput);
     };
 </script>
+
 </body>
 </html>
