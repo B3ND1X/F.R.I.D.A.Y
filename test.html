@@ -250,10 +250,6 @@
                     speakText(message); // Speak the time out loud
                 } else if (commandBuffer.includes('tell me a joke')) {
                     getRandomJoke(commandBuffer); // Call the joke function
-                } else if (commandBuffer.includes('convert')) {
-                    convertUnits(commandBuffer); // Call the unit conversion function
-                } else if (commandBuffer.match(/\d+ [+\-*/] \d+/)) {
-                    doMath(commandBuffer); // Call the math operation function
                 } else if (commandBuffer.includes('set timer')) {
                     setTimer(commandBuffer); // Call the timer function
                 } else if (commandBuffer.includes('set alarm')) {
@@ -369,58 +365,19 @@
         }
     }
 
-    // Get a random joke
+    // Update getRandomJoke function
     function getRandomJoke() {
-        const jokes = [
-            "Why don't skeletons fight each other? They don't have the guts.",
-            "I told my wife she was drawing her eyebrows too high. She looked surprised.",
-            "What do you get if you cross a snowman and a vampire? Frostbite!"
-        ];
-        speakText(jokes[Math.floor(Math.random() * jokes.length)]);
+        fetch('https://official-joke-api.appspot.com/random_joke')
+            .then(response => response.json())
+            .then(data => {
+                const joke = `${data.setup} ${data.punchline}`;
+                speakText(joke);
+            })
+            .catch(error => {
+                speakText("Sorry, I couldn't fetch a joke at the moment.");
+            });
     }
 
-    // Convert units (miles to kilometers)
-    function convertUnits(query) {
-        const milesToKm = 1.60934;
-        const match = query.match(/(\d+)\s*miles/);
-        if (match) {
-            const miles = parseFloat(match[1]);
-            const km = miles * milesToKm;
-            speakText(`${miles} miles is equal to ${km.toFixed(2)} kilometers.`);
-        } else {
-            speakText("Please specify the unit you want to convert.");
-        }
-    }
-
-    // Perform math operation
-    function doMath(query) {
-        const regex = /(\d+)\s*([+\-*/])\s*(\d+)/;
-        const match = query.match(regex);
-        if (match) {
-            const num1 = parseFloat(match[1]);
-            const operator = match[2];
-            const num2 = parseFloat(match[3]);
-            let result;
-
-            switch (operator) {
-                case "+":
-                    result = num1 + num2;
-                    break;
-                case "-":
-                    result = num1 - num2;
-                    break;
-                case "*":
-                    result = num1 * num2;
-                    break;
-                case "/":
-                    result = num1 / num2;
-                    break;
-            }
-            speakText(`The result is ${result}`);
-        } else {
-            speakText("Sorry, I couldn't understand the math query.");
-        }
-    }
 
     // Set a timer
     function setTimer(query) {
@@ -468,48 +425,77 @@
         }
     }
 
-    // Get current weather
-    function getWeather(query) {
-        const city = query.replace("weather in", "").trim();
-        if (city) {
-            fetch(`https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${city}`)
-                .then(response => response.json())
-                .then(data => {
-                    const weatherInfo = `The weather in ${data.location.name} is ${data.current.temp_c}°C with ${data.current.condition.text}.`;
-                    speakText(weatherInfo);
-                })
-                .catch(error => {
-                    speakText("Sorry, I couldn't fetch the weather details.");
-                });
-        } else {
-            speakText("Please specify the city for the weather.");
-        }
-    }
-
-    // Get the latest news
-    function getLatestNews() {
-        fetch(`https://content.guardianapis.com/search?api-key=${guardianApiKey}`)
+// Get current weather
+function getWeather(query) {
+    const city = query.replace("weather in", "").trim();
+    if (city) {
+        fetch(`https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${city}`)
             .then(response => response.json())
             .then(data => {
+                if (data && data.location && data.current) {
+                    const weatherInfo = `
+                        The weather in ${data.location.name} is ${data.current.temp_c}°C with ${data.current.condition.text}.
+                    `;
+                    // Display weather info in the DOM
+                    document.getElementById('weather-info').textContent = weatherInfo;
+                    speakText(weatherInfo);
+                } else {
+                    const errorMessage = "Sorry, I couldn't fetch the weather details.";
+                    document.getElementById('weather-info').textContent = errorMessage;
+                    speakText(errorMessage);
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching weather:", error);
+                const errorMessage = "Sorry, I couldn't fetch the weather details.";
+                document.getElementById('weather-info').textContent = errorMessage;
+                speakText(errorMessage);
+            });
+    } else {
+        const errorMessage = "Please specify the city for the weather.";
+        document.getElementById('weather-info').textContent = errorMessage;
+        speakText(errorMessage);
+    }
+}
+
+// Get the latest news
+function getLatestNews() {
+    fetch(`https://content.guardianapis.com/search?api-key=${guardianApiKey}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data && data.response && data.response.results && data.response.results.length > 0) {
                 const articles = data.response.results;
                 const topArticle = articles[0];
                 const newsInfo = `Latest news: ${topArticle.webTitle} - ${topArticle.webUrl}`;
+                // Display news info in the DOM
+                document.getElementById('news-info').textContent = newsInfo;
                 speakText(newsInfo);
-            })
-            .catch(error => {
-                speakText("Sorry, I couldn't fetch the news.");
-            });
-    }
+            } else {
+                const errorMessage = "Sorry, I couldn't fetch the latest news.";
+                document.getElementById('news-info').textContent = errorMessage;
+                speakText(errorMessage);
+            }
+        })
+        .catch(error => {
+            console.error("Error fetching news:", error);
+            const errorMessage = "Sorry, I couldn't fetch the latest news.";
+            document.getElementById('news-info').textContent = errorMessage;
+            speakText(errorMessage);
+        });
+}
 
-    // Get motivation
-    function getMotivation() {
-        const quotes = [
-            "The best time to plant a tree was 20 years ago. The second best time is now.",
-            "Don't watch the clock; do what it does. Keep going.",
-            "Success is not final, failure is not fatal: It is the courage to continue that counts."
-        ];
-        speakText(quotes[Math.floor(Math.random() * quotes.length)]);
-    }
+    // Update getMotivationalQuote function
+function getMotivation() {
+    fetch('https://api.quotable.io/random?tags=inspirational')
+        .then(response => response.json())
+        .then(data => {
+            const quote = `${data.content} — ${data.author}`;
+            speakText(quote);
+        })
+        .catch(error => {
+            speakText("Sorry, I couldn't fetch a motivational quote at the moment.");
+        });
+}
 
     // Translate text
     function translateText(query) {
