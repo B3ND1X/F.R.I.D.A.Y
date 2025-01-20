@@ -458,44 +458,81 @@
                 sendButton.addEventListener('click', handleUserInput);
             };
 
-                    // Process the command
-            function processCommand(command) {
-                if (command.includes("search")) {
-                    let query = command.replace("search", "").trim();
-                    searchWeb(query);
-                } else if (command.includes("weather")) {
-                    getWeather();
-                } else if (command.includes("play")) {
-                    playMusic(command);
-                } else if (command.includes("news")) {
-                    getNews();
-                } else if (command.includes("time")) {
-                    getTime();
-                } else if (command.includes("set timer")) {
-                    setTimer(command);
-                } else if (command.includes("set alarm")) {
-                    setAlarm(command);
-                } else if (command.includes("movies")) {
-                    getMovies();
-                } else {
-                    sendToGroq(command); // Send the command to Groq by default
-                }
-            }
+                   // Process the command
+function processCommand(command) {
+    if (command.includes("search")) {
+        let query = command.replace("search", "").trim();
+        searchWeb(query);
+    } else if (command.includes("weather")) {
+        getWeather();
+    } else if (command.includes("play")) {
+        playMusic(command);
+    } else if (command.includes("news")) {
+        getNews();
+    } else if (command.includes("time")) {
+        getTime();
+    } else if (command.includes("set timer")) {
+        setTimer(command);
+    } else if (command.includes("set alarm")) {
+        setAlarm(command);
+    } else if (command.includes("movies")) {
+        getMovies();
+    } else {
+        sendToGroq(command); // Send the command to Groq by default
+    }
+}
 
-        // Set timer functionality
-        function setTimer(command) {
-            let minutes = command.match(/\d+/); // Extract number
-            if (minutes) {
-                let timerMinutes = parseInt(minutes[0]);
-                displayMessage(`Setting a timer for ${timerMinutes} minutes.`, 'groq-response');
-                timer = setTimeout(() => {
-                    displayMessage("Timer ended! Time's up!", 'groq-response');
-                    alert("Time's up!");
-                }, timerMinutes * 60000); // Convert to milliseconds
-            } else {
-                displayMessage("Please specify the number of minutes for the timer.", 'groq-response');
-            }
-        }
+// Get weather
+async function getWeather() {
+    try {
+        // Step 1: Get user's location using the Geolocation API
+        const getLocation = () => {
+            return new Promise((resolve, reject) => {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(resolve, reject);
+                } else {
+                    reject(new Error('Geolocation not supported.'));
+                }
+            });
+        };
+
+        const position = await getLocation();
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+
+        // Step 2: Fetch weather data using the coordinates
+        const weatherResponse = await fetch(
+            `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${latitude},${longitude}&aqi=no`
+        );
+        const weatherData = await weatherResponse.json();
+
+        // Step 3: Extract weather details
+        const temperature = weatherData.current.temp_c; // Temperature in Celsius
+        const description = weatherData.current.condition.text; // Weather description
+        const city = weatherData.location.name; // City name
+
+        // Step 4: Display the weather
+        displayMessage(`Current weather in ${city}: ${temperature}°C, ${description}.`, 'groq-response');
+    } catch (error) {
+        console.error('Weather error:', error);
+        displayMessage('Error occurred while fetching the weather.', 'groq-response');
+    }
+}
+        
+// Set timer
+function setTimer(command) {
+    let minutes = command.match(/\d+/); // Extract number
+    if (minutes) {
+        let timerMinutes = parseInt(minutes[0]);
+        displayMessage(`Setting a timer for ${timerMinutes} minutes.`, 'groq-response');
+        timer = setTimeout(() => {
+            displayMessage("Timer ended! Time's up!", 'groq-response');
+            alert("Time's up!");
+        }, timerMinutes * 60000); // Convert to milliseconds
+    } else {
+        displayMessage("Please specify the number of minutes for the timer.", 'groq-response');
+    }
+}
 
         // Set alarm functionality
         function setAlarm(command) {
@@ -540,20 +577,6 @@
         async function playMusic(command) {
             const song = command.replace("play", "").trim();
             displayMessage(`Playing song: ${song}`, 'groq-response');
-        }
-
-        // Fetch weather data
-        async function getWeather() {
-            try {
-                const weatherResponse = await fetch(`https://api.weatherbit.io/v2.0/current?city=London&key=${weatherApiKey}`);
-                const weatherData = await weatherResponse.json();
-                const temperature = weatherData.data[0].temp;
-                const description = weatherData.data[0].weather.description;
-                displayMessage(`Current weather in London: ${temperature}°C, ${description}.`, 'groq-response');
-            } catch (error) {
-                console.error('Weather error:', error);
-                displayMessage('Error occurred while fetching the weather.', 'groq-response');
-            }
         }
 
         // Get current time
