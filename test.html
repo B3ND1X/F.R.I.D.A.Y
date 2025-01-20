@@ -1,8 +1,27 @@
-<html lang="en"><head><script src="chrome-extension://mooikfkahbdckldjjndioackbalphokd/assets/prompt.js"></script><style type="text/css">.fc-ab-root { display: none !important } body > div.fc-ab-root { display: none !important } .fbs-auth__container.fbs-auth__adblock { display: none !important } .overlay-34_Kj { display: none !important } .wrapper-3AzfF { display: none !important } .fEy1Z2XT { display: none !important } .nytc---modal-window---windowContainer.nytc---modal-window---isShown.nytc---shared---blackBG { display: none !important } .tp-modal { display: none !important } .tp-backdrop.tp-active { display: none !important } .c-nudge__container.c-gate__container { display: none !important } .c-nudge__container.c-regGate__container { display: none !important } .css-n7r8pg { display: none !important } .css-1bd8bfl { display: none !important } .overlay__59af11e2 { display: none !important } .tp_modal { display: none !important } .tp-backdrop.tp-active { display: none !important } div[class^='sp_message_container'] { display: none !important } div[class^='sp_veil'] { display: none !important } </style></head><body>
-
-
+<html lang="en">
+<head>
+    <script src="chrome-extension://mooikfkahbdckldjjndioackbalphokd/assets/prompt.js"></script>
+    <style type="text/css">
+        .fc-ab-root { display: none !important } 
+        body > div.fc-ab-root { display: none !important } 
+        .fbs-auth__container.fbs-auth__adblock { display: none !important } 
+        .overlay-34_Kj { display: none !important } 
+        .wrapper-3AzfF { display: none !important } 
+        .fEy1Z2XT { display: none !important } 
+        .nytc---modal-window---windowContainer.nytc---modal-window---isShown.nytc---shared---blackBG { display: none !important } 
+        .tp-modal { display: none !important } 
+        .tp-backdrop.tp-active { display: none !important } 
+        .c-nudge__container.c-gate__container { display: none !important } 
+        .c-nudge__container.c-regGate__container { display: none !important } 
+        .css-n7r8pg { display: none !important } 
+        .css-1bd8bfl { display: none !important } 
+        .overlay__59af11e2 { display: none !important } 
+        .tp_modal { display: none !important } 
+        .tp-backdrop.tp-active { display: none !important } 
+        div[class^='sp_message_container'] { display: none !important } 
+        div[class^='sp_veil'] { display: none !important } 
+    </style>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>F.R.I.D.AY Functional Responsive Intelligent Assistant for You</title>
     <style>
         /* CSS styles unchanged */
@@ -147,7 +166,6 @@
         let timer;
         let alarmTimeout;
 
-
         // Web Audio API setup for capturing sound
         let audioContext, analyser, microphoneStream;
         let bufferLength;
@@ -204,7 +222,7 @@
             orb.style.width = orbSize + 'px';
             orb.style.height = orbSize + 'px';
         }
-        
+
         // Initialize speech recognition
         function initializeSpeechRecognition() {
             if (!('webkitSpeechRecognition' in window)) {
@@ -253,6 +271,7 @@
             recognition.onend = () => {
                 console.log("Speech recognition ended.");
                 recognizing = false;
+                restartSpeechRecognition(); // Restart recognition when it ends
             };
 
             recognition.onerror = (event) => {
@@ -260,16 +279,6 @@
                 restartSpeechRecognition(); // Restart recognition on error
             };
         }
-            recognition.onend = () => {
-                console.log("Speech recognition ended.");
-                recognizing = false; // Reset recognizing flag
-                restartSpeechRecognition(); // Restart recognition when it ends
-            };
-
-            if (!recognizing) { // Only start recognition if it's not already running
-                recognition.start();
-            }
-        
 
         // Function to restart speech recognition
         function restartSpeechRecognition() {
@@ -344,16 +353,16 @@
             }
         }
 
-               // Weather Fetch with Location
+        // Weather Fetch with Location
         function fetchWeather() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition((position) => {
                     const latitude = position.coords.latitude;
                     const longitude = position.coords.longitude;
-        
+
                     // Fetch weather using the latitude and longitude
                     const weatherUrl = `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${latitude},${longitude}&aqi=no`;
-        
+
                     fetch(weatherUrl)
                         .then(response => response.json())
                         .then(data => {
@@ -443,6 +452,7 @@
 
             sendButton.addEventListener('click', handleUserInput);
         };
+
         // Process the command
         function processCommand(command) {
             if (command.includes("search")) {
@@ -547,46 +557,17 @@
             displayMessage(`The current time is: ${currentTime}`, 'groq-response');
         }
 
-        // Display messages in chat
-        function displayMessage(message, sender = 'user-message') {
-            const messageElement = document.createElement('div');
-            messageElement.className = 'message ' + sender;
-            messageElement.innerHTML = message;
-            chatBox.appendChild(messageElement);
-            chatBox.scrollTop = chatBox.scrollHeight;
+        // Search the web
+        function searchWeb(query) {
+            const url = `https://www.google.com/search?q=${query}`;
+            window.open(url, '_blank');
         }
 
-        // Play wake word sound
-        function playWakeWordSound() {
-            const audio = new Audio('wake-word-sound.mp3');
-            audio.play();
-        }
-
-        // Initialize speech recognition
-        requestMicrophoneAccess().then(() => {
-            initializeSpeechRecognition();
-        });
-
-        // Handle sending text input
-        sendButton.addEventListener('click', () => {
-            const text = userInput.value.trim();
-            if (text) {
-                displayMessage(text, 'user-message');
-                userInput.value = '';
-                processCommand(text);
-            }
-        });
-
-        // Inactivity timeout handler
-        function resetInactivityTimer() {
-            clearTimeout(inactivityTimeout);
-            inactivityTimeout = setTimeout(() => {
-                if (!recognizing) {
-                    console.log("Inactivity detected.");
-                    displayMessage("I have been inactive for a while. Please say 'Hey Friday' to continue.", 'groq-response');
-                }
-            }, INACTIVITY_TIMEOUT);
+        // Get news
+        function getNews() {
+            const url = `https://news.google.com`;
+            window.open(url, '_blank');
         }
     </script>
-
-</body></html>
+</body>
+</html>
