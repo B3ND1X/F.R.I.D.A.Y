@@ -1,6 +1,6 @@
-l<!DOCTYPE html>
-<html lang="en">
-<head>
+<html lang="en"><head><script src="chrome-extension://mooikfkahbdckldjjndioackbalphokd/assets/prompt.js"></script><style type="text/css">.fc-ab-root { display: none !important } body > div.fc-ab-root { display: none !important } .fbs-auth__container.fbs-auth__adblock { display: none !important } .overlay-34_Kj { display: none !important } .wrapper-3AzfF { display: none !important } .fEy1Z2XT { display: none !important } .nytc---modal-window---windowContainer.nytc---modal-window---isShown.nytc---shared---blackBG { display: none !important } .tp-modal { display: none !important } .tp-backdrop.tp-active { display: none !important } .c-nudge__container.c-gate__container { display: none !important } .c-nudge__container.c-regGate__container { display: none !important } .css-n7r8pg { display: none !important } .css-1bd8bfl { display: none !important } .overlay__59af11e2 { display: none !important } .tp_modal { display: none !important } .tp-backdrop.tp-active { display: none !important } div[class^='sp_message_container'] { display: none !important } div[class^='sp_veil'] { display: none !important } </style></head><body>
+
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>F.R.I.D.AY Functional Responsive Intelligent Assistant for You</title>
@@ -99,11 +99,11 @@ l<!DOCTYPE html>
             z-index: -1;
         }
     </style>
-</head>
-<body>
+
+
     <div id="chat-box-container">
         <div id="chat-box"></div>
-        <input type="text" id="user-input" placeholder="Type your message..." />
+        <input type="text" id="user-input" placeholder="Type your message...">
         <button id="send-btn">Send</button>
     </div>
 
@@ -146,6 +146,59 @@ l<!DOCTYPE html>
         let timer;
         let alarmTimeout;
 
+
+        // Function to request microphone access (Only once)
+        function requestMicrophoneAccess() {
+            return new Promise((resolve, reject) => {
+                if (microphonePermissionGranted) {
+                    resolve(true); // Already granted
+                    return;
+                }
+
+                navigator.mediaDevices.getUserMedia({ audio: true })
+                    .then((stream) => {
+                        microphonePermissionGranted = true;
+                        setUpAudioAnalysis(stream);
+                        resolve(true);
+                    })
+                    .catch((err) => {
+                        reject("Microphone access denied: " + err);
+                    });
+            });
+        }
+
+        // Set up the Web Audio API analyser
+        function setUpAudioAnalysis(stream) {
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;  // Size of FFT for analyzing frequency data
+            bufferLength = analyser.frequencyBinCount;
+            dataArray = new Uint8Array(bufferLength);
+
+            microphoneStream = audioContext.createMediaStreamSource(stream);
+            microphoneStream.connect(analyser);
+
+            // Start analyzing audio every 50ms
+            setInterval(updateOrbSize, 50);
+        }
+
+        // Update the orb size based on microphone noise
+        function updateOrbSize() {
+            analyser.getByteFrequencyData(dataArray);
+
+            // Calculate average volume
+            let sum = 0;
+            for (let i = 0; i < bufferLength; i++) {
+                sum += dataArray[i];
+            }
+            let averageVolume = sum / bufferLength;
+
+            // Map average volume to orb size
+            let orbSize = Math.min(100 + averageVolume / 2, 300); // Max size 300px
+            orb.style.width = orbSize + 'px';
+            orb.style.height = orbSize + 'px';
+        }
+        
         // Initialize speech recognition
         function initializeSpeechRecognition() {
             if (!('webkitSpeechRecognition' in window)) {
@@ -346,5 +399,5 @@ l<!DOCTYPE html>
             }, INACTIVITY_TIMEOUT);
         }
     </script>
-</body>
-</html>
+
+</body></html>
