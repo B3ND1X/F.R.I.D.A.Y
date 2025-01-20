@@ -439,19 +439,24 @@
             console.log("Assistant's TTS, SST, weather, and news have been refreshed.");
         }
 
-        // Setup and initialize the assistant when the page loads
-        window.onload = function () {
-            fetchWeather();
-            fetchNews();
-            requestMicrophoneAccess().then(() => {
-                initializeSpeechRecognition(); // Initialize speech recognition after microphone access is granted
-            }).catch((error) => {
-                console.error(error);
-                alert("Assistant cannot run without microphone access.");
-            });
-
-            sendButton.addEventListener('click', handleUserInput);
-        };
+            // Setup and initialize the assistant when the page loads
+            window.onload = function () {
+                fetchWeather();
+                fetchNews();
+                requestMicrophoneAccess().then(() => {
+                    initializeSpeechRecognition(); // Initialize speech recognition after microphone access is granted
+                    try {
+                        recognition.start(); // Start speech recognition
+                    } catch (error) {
+                        console.error("Error starting speech recognition:", error);
+                    }
+                }).catch((error) => {
+                    console.error(error);
+                    alert("Assistant cannot run without microphone access.");
+                });
+            
+                sendButton.addEventListener('click', handleUserInput);
+            };
 
         // Process the command
         function processCommand(command) {
