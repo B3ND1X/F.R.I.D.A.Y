@@ -458,29 +458,29 @@
                 sendButton.addEventListener('click', handleUserInput);
             };
 
-        // Process the command
-        function processCommand(command) {
-            if (command.includes("search")) {
-                let query = command.replace("search", "").trim();
-                searchWeb(query);
-            } else if (command.includes("weather")) {
-                getWeather();
-            } else if (command.includes("play")) {
-                playMusic(command);
-            } else if (command.includes("news")) {
-                getNews();
-            } else if (command.includes("time")) {
-                getTime();
-            } else if (command.includes("set timer")) {
-                setTimer(command);
-            } else if (command.includes("set alarm")) {
-                setAlarm(command);
-            } else if (command.includes("movies")) {
-                getMovies();
-            } else {
-                displayMessage("Sorry, I didn't understand that command.", 'groq-response');
+                    // Process the command
+            function processCommand(command) {
+                if (command.includes("search")) {
+                    let query = command.replace("search", "").trim();
+                    searchWeb(query);
+                } else if (command.includes("weather")) {
+                    getWeather();
+                } else if (command.includes("play")) {
+                    playMusic(command);
+                } else if (command.includes("news")) {
+                    getNews();
+                } else if (command.includes("time")) {
+                    getTime();
+                } else if (command.includes("set timer")) {
+                    setTimer(command);
+                } else if (command.includes("set alarm")) {
+                    setAlarm(command);
+                } else if (command.includes("movies")) {
+                    getMovies();
+                } else {
+                    sendToGroq(command); // Send the command to Groq by default
+                }
             }
-        }
 
         // Set timer functionality
         function setTimer(command) {
