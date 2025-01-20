@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+l<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -125,6 +125,9 @@
         const apiKey = "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"; // Groq API key
         const weatherApiKey = '80445369031848dbad520436251201'; // Weather API key
         const guardianApiKey = '962cca3b-893a-4285-969b-51e44bf81615'; // The Guardian API key
+        const tmdbApiKey = '12b781071b2feaf56c0197cdc318e017'; // TMDB API key for movie suggestions
+        const spotifyClientId = '6dcbbbc7611649c08f1af837d8725674'; // Spotify Client ID
+        const spotifyClientSecret = '331d4f6cdcc14555b7d81a5041774992'; // Spotify Client Secret
         const wakeWord = "hey friday";
 
         let recognition;
@@ -140,64 +143,10 @@
         const INACTIVITY_TIMEOUT = 30000; // 30 seconds inactivity timeout
         let recognizing = false; // Flag to track recognition state
 
-        // Web Audio API setup for capturing sound
-        let audioContext, analyser, microphoneStream;
-        let bufferLength;
-        let dataArray;
+        let timer;
+        let alarmTimeout;
 
-        // Function to request microphone access (Only once)
-        function requestMicrophoneAccess() {
-            return new Promise((resolve, reject) => {
-                if (microphonePermissionGranted) {
-                    resolve(true); // Already granted
-                    return;
-                }
-
-                navigator.mediaDevices.getUserMedia({ audio: true })
-                    .then((stream) => {
-                        microphonePermissionGranted = true;
-                        setUpAudioAnalysis(stream);
-                        resolve(true);
-                    })
-                    .catch((err) => {
-                        reject("Microphone access denied: " + err);
-                    });
-            });
-        }
-
-        // Set up the Web Audio API analyser
-        function setUpAudioAnalysis(stream) {
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            analyser = audioContext.createAnalyser();
-            analyser.fftSize = 256;  // Size of FFT for analyzing frequency data
-            bufferLength = analyser.frequencyBinCount;
-            dataArray = new Uint8Array(bufferLength);
-
-            microphoneStream = audioContext.createMediaStreamSource(stream);
-            microphoneStream.connect(analyser);
-
-            // Start analyzing audio every 50ms
-            setInterval(updateOrbSize, 50);
-        }
-
-        // Update the orb size based on microphone noise
-        function updateOrbSize() {
-            analyser.getByteFrequencyData(dataArray);
-
-            // Calculate average volume
-            let sum = 0;
-            for (let i = 0; i < bufferLength; i++) {
-                sum += dataArray[i];
-            }
-            let averageVolume = sum / bufferLength;
-
-            // Map average volume to orb size
-            let orbSize = Math.min(100 + averageVolume / 2, 300); // Max size 300px
-            orb.style.width = orbSize + 'px';
-            orb.style.height = orbSize + 'px';
-        }
-
-         // Initialize speech recognition
+        // Initialize speech recognition
         function initializeSpeechRecognition() {
             if (!('webkitSpeechRecognition' in window)) {
                 alert("Speech recognition is not supported by this browser.");
@@ -205,14 +154,15 @@
             }
 
             recognition = new webkitSpeechRecognition();
-            recognition.continuous = true;  // Continuous listening
-            recognition.interimResults = false; // Do not return partial results
+            recognition.continuous = true;
+            recognition.interimResults = false;
             recognition.lang = "en-US";
             recognition.maxAlternatives = 1;
 
             recognition.onstart = () => {
                 console.log("Speech recognition started.");
-                recognizing = true; // Set recognizing flag
+                recognizing = true;
+                resetInactivityTimer();
             };
 
             recognition.onresult = (event) => {
@@ -223,1083 +173,178 @@
                 transcript = transcript.trim().toLowerCase();
                 console.log("Transcript:", transcript);
 
-                // Detect wake word and command
                 if (transcript.includes(wakeWord) && !isListeningForCommand) {
                     console.log("Wake word detected!");
-                    playWakeWordSound(); // Play activation sound
+                    playWakeWordSound();
                     isListeningForCommand = true;
                     displayMessage("Listening for your command...", 'groq-response');
                     commandBuffer = '';
-                    return; // Do not process yet, continue listening
+                    return;
                 }
 
                 if (isListeningForCommand && transcript && transcript !== wakeWord) {
                     if (transcript.length < 3) {
-                        return; // Avoid sending incomplete or very short prompts
+                        return;
                     }
-
-                    commandBuffer = transcript;
-                    console.log("Captured command:", commandBuffer);
-
-                    // Set a timer for X amount of minutes or seconds
-                    if (commandBuffer.startsWith("set a timer for")) {
-                        // Your timer logic here
-                        // Timer variables
-let activeTimer = null; // Stores the current timer's ID
-let timerEndTime = null; // Stores when the timer will end
-
-recognition.onresult = (event) => {
-    let transcript = '';
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
-    }
-    transcript = transcript.trim().toLowerCase();
-    console.log("Transcript:", transcript);
-
-    if (transcript.includes(wakeWord) && !isListeningForCommand) {
-        console.log("Wake word detected!");
-        playWakeWordSound(); // Play activation sound
-        isListeningForCommand = true;
-        displayMessage("Listening for your command...", 'groq-response');
-        commandBuffer = '';
-        return;
-    }
-
-    if (isListeningForCommand && transcript && transcript !== wakeWord) {
-        if (transcript.length < 3) {
-            return; // Avoid processing very short commands
-        }
-
-        commandBuffer = transcript;
-        console.log("Captured command:", commandBuffer);
-
-        // Handle "set a timer" command
-        if (commandBuffer.startsWith("set a timer for")) {
-            const timeMatch = commandBuffer.match(/(\d+)\s*(seconds?|minutes?)/);
-            if (timeMatch) {
-                const amount = parseInt(timeMatch[1], 10);
-                const unit = timeMatch[2];
-                const duration = unit.startsWith("minute") ? amount * 60 * 1000 : amount * 1000;
-
-                // Cancel any existing timer
-                if (activeTimer) {
-                    clearTimeout(activeTimer);
-                    activeTimer = null;
-                    displayMessage("Previous timer canceled.", 'groq-response');
-                    speakText("Previous timer canceled.");
+                    processCommand(transcript);
+                    isListeningForCommand = false;
                 }
-
-                // Set new timer
-                activeTimer = setTimeout(() => {
-                    const timerEndMessage = `Timer is up! ${amount} ${unit} have passed.`;
-                    displayMessage(timerEndMessage, 'groq-response');
-                    speakText(timerEndMessage);
-                    activeTimer = null; // Clear active timer after completion
-                }, duration);
-
-                // Store end time for potential future reference
-                timerEndTime = Date.now() + duration;
-
-                const message = `Timer is set for ${amount} ${unit}.`;
-                displayMessage(message, 'groq-response');
-                speakText(message);
-            } else {
-                displayMessage("I couldn't understand the timer duration.", 'groq-response');
-                speakText("I couldn't understand the timer duration.");
-            }
-        }
-
-        // Handle "cancel the timer" command
-        else if (commandBuffer.includes("cancel the timer")) {
-            if (activeTimer) {
-                clearTimeout(activeTimer);
-                activeTimer = null;
-                displayMessage("Timer has been canceled.", 'groq-response');
-                speakText("Timer has been canceled.");
-            } else {
-                displayMessage("No active timer to cancel.", 'groq-response');
-                speakText("No active timer to cancel.");
-            }
-        }
-
-        // Handle other commands
-        else if (commandBuffer.includes('what time is it')) {
-            const currentTime = new Date().toLocaleTimeString();
-            const message = `The current time is ${currentTime}.`;
-            displayMessage(message, 'groq-response');
-            speakText(message);
-        } else {
-            displayMessage("Processing your request...", 'groq-response');
-            sendToGroq(commandBuffer); // Send other commands to Groq
-        }
-
-        commandBuffer = ''; // Reset buffer after processing
-        isListeningForCommand = false; // End listening for command
-    }
-
-    resetInactivityTimer(); // Reset inactivity timer after receiving speech
-};
-                    }
-
-                    // Set an alarm for X time
-                    else if (commandBuffer.startsWith("set an alarm for")) {
-                        // Alarm variables
-let activeAlarm = null; // Stores the ID of the alarm's timeout
-let alarmTime = null; // Stores the alarm time
-
-recognition.onresult = (event) => {
-    let transcript = '';
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
-    }
-    transcript = transcript.trim().toLowerCase();
-    console.log("Transcript:", transcript);
-
-    if (transcript.includes(wakeWord) && !isListeningForCommand) {
-        console.log("Wake word detected!");
-        playWakeWordSound(); // Play activation sound
-        isListeningForCommand = true;
-        displayMessage("Listening for your command...", 'groq-response');
-        commandBuffer = '';
-        return;
-    }
-
-    if (isListeningForCommand && transcript && transcript !== wakeWord) {
-        if (transcript.length < 3) {
-            return; // Avoid processing very short commands
-        }
-
-        commandBuffer = transcript;
-        console.log("Captured command:", commandBuffer);
-
-        // Handle "set an alarm" command
-        if (commandBuffer.startsWith("set an alarm for")) {
-            const timeMatch = commandBuffer.match(/(\d{1,2}):(\d{2})\s*(am|pm)/);
-            if (timeMatch) {
-                const hours = parseInt(timeMatch[1], 10);
-                const minutes = parseInt(timeMatch[2], 10);
-                const period = timeMatch[3];
-
-                // Convert 12-hour time to 24-hour time
-                let alarmHours = period === "pm" && hours !== 12 ? hours + 12 : hours;
-                alarmHours = period === "am" && hours === 12 ? 0 : alarmHours;
-
-                // Get current date and set alarm time
-                const now = new Date();
-                alarmTime = new Date();
-                alarmTime.setHours(alarmHours, minutes, 0, 0);
-
-                // Check if the alarm time is in the past and adjust to the next day
-                if (alarmTime <= now) {
-                    alarmTime.setDate(alarmTime.getDate() + 1);
-                }
-
-                const timeUntilAlarm = alarmTime - now;
-
-                // Cancel any existing alarm
-                if (activeAlarm) {
-                    clearTimeout(activeAlarm);
-                    activeAlarm = null;
-                    displayMessage("Previous alarm canceled.", 'groq-response');
-                    speakText("Previous alarm canceled.");
-                }
-
-                // Set the alarm
-                activeAlarm = setTimeout(() => {
-                    const alarmMessage = "Alarm is going off! It's time!";
-                    displayMessage(alarmMessage, 'groq-response');
-                    speakText(alarmMessage);
-                    activeAlarm = null; // Clear active alarm after it goes off
-                }, timeUntilAlarm);
-
-                const alarmSetMessage = `Alarm is set for ${alarmTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`;
-                displayMessage(alarmSetMessage, 'groq-response');
-                speakText(alarmSetMessage);
-            } else {
-                displayMessage("I couldn't understand the alarm time format. Please use a format like '7:30 AM'.", 'groq-response');
-                speakText("I couldn't understand the alarm time format. Please use a format like '7:30 AM'.");
-            }
-        }
-
-        // Handle "cancel the alarm" command
-        else if (commandBuffer.includes("cancel the alarm")) {
-            if (activeAlarm) {
-                clearTimeout(activeAlarm);
-                activeAlarm = null;
-                alarmTime = null;
-                displayMessage("Alarm has been canceled.", 'groq-response');
-                speakText("Alarm has been canceled.");
-            } else {
-                displayMessage("No active alarm to cancel.", 'groq-response');
-                speakText("No active alarm to cancel.");
-            }
-        }
-
-        // Handle other commands
-        else if (commandBuffer.includes('what time is it')) {
-            const currentTime = new Date().toLocaleTimeString();
-            const message = `The current time is ${currentTime}.`;
-            displayMessage(message, 'groq-response');
-            speakText(message);
-        } else {
-            displayMessage("Processing your request...", 'groq-response');
-            sendToGroq(commandBuffer); // Send other commands to Groq
-        }
-
-        commandBuffer = ''; // Reset buffer after processing
-        isListeningForCommand = false; // End listening for command
-    }
-
-    resetInactivityTimer(); // Reset inactivity timer after receiving speech
-};
-                    }
-
-                    // What is the weather
-                    else if (commandBuffer.includes("what is the weather")) {
-                        fetchWeather(); // Your weather fetch function
-                        // Weather variables
-const weatherApiKey = 'YOUR_WEATHER_API_KEY'; // Replace with your actual API key
-const weatherApiUrl = 'https://api.openweathermap.org/data/2.5/weather'; // Adjust if needed
-
-async function getWeatherForecast() {
-    try {
-        // Fetch the user's current location (assuming latitude and longitude are available)
-        const locationResponse = await fetch('https://ipapi.co/json/'); // Replace with your location API
-        const locationData = await locationResponse.json();
-
-        const { latitude, longitude, city } = locationData;
-
-        // Fetch weather data from the API
-        const weatherResponse = await fetch(
-            `${weatherApiUrl}?lat=${latitude}&lon=${longitude}&units=metric&appid=${weatherApiKey}`
-        );
-        const weatherData = await weatherResponse.json();
-
-        if (weatherData.cod === 200) {
-            const { main, weather, wind } = weatherData;
-            const temperature = Math.round(main.temp);
-            const condition = weather[0].description;
-            const windSpeed = Math.round(wind.speed);
-
-            const forecastMessage = `The current weather in ${city} is ${condition} with a temperature of ${temperature}°C and wind speed of ${windSpeed} km/h.`;
-            displayMessage(forecastMessage, 'groq-response');
-            speakText(forecastMessage);
-        } else {
-            displayMessage("I couldn't fetch the weather information. Please try again later.", 'groq-response');
-            speakText("I couldn't fetch the weather information. Please try again later.");
-        }
-    } catch (error) {
-        console.error("Error fetching weather data:", error);
-        displayMessage("There was an error retrieving the weather. Please try again later.", 'groq-response');
-        speakText("There was an error retrieving the weather. Please try again later.");
-    }
-}
-
-recognition.onresult = (event) => {
-    let transcript = '';
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
-    }
-    transcript = transcript.trim().toLowerCase();
-    console.log("Transcript:", transcript);
-
-    if (transcript.includes(wakeWord) && !isListeningForCommand) {
-        console.log("Wake word detected!");
-        playWakeWordSound();
-        isListeningForCommand = true;
-        displayMessage("Listening for your command...", 'groq-response');
-        commandBuffer = '';
-        return;
-    }
-
-    if (isListeningForCommand && transcript && transcript !== wakeWord) {
-        if (transcript.length < 3) {
-            return;
-        }
-
-        commandBuffer = transcript;
-        console.log("Captured command:", commandBuffer);
-
-        // Handle "what is the weather" command
-        if (commandBuffer.includes("what is the weather")) {
-            displayMessage("Fetching the weather forecast...", 'groq-response');
-            speakText("Fetching the weather forecast...");
-            getWeatherForecast();
-        }
-
-        // Handle other commands as usual
-        else if (commandBuffer.includes('cancel the alarm')) {
-            if (activeAlarm) {
-                clearTimeout(activeAlarm);
-                activeAlarm = null;
-                alarmTime = null;
-                displayMessage("Alarm has been canceled.", 'groq-response');
-                speakText("Alarm has been canceled.");
-            } else {
-                displayMessage("No active alarm to cancel.", 'groq-response');
-                speakText("No active alarm to cancel.");
-            }
-        } else {
-            displayMessage("Processing your request...", 'groq-response');
-            sendToGroq(commandBuffer);
-        }
-
-        commandBuffer = ''; // Reset buffer after processing
-        isListeningForCommand = false; // End listening for command
-    }
-
-    resetInactivityTimer();
-};
-                    }
-
-                    // What is the news
-                    else if (commandBuffer.includes("what is the news")) {
-                        fetchNews(); // Your news fetch function
-                        // Function to fetch and read top 3 news headlines
-async function getNewsHeadlines() {
-    try {
-        // Fetch top news articles from The Guardian API
-        const guardianUrl = `https://content.guardianapis.com/search?api-key=${guardianApiKey}`;
-        const newsResponse = await fetch(guardianUrl);
-        const newsData = await newsResponse.json();
-
-        if (newsData.response && newsData.response.results) {
-            const articles = newsData.response.results.slice(0, 3); // Get top 3 articles
-            let newsMessage = "Here are the top 3 headlines:";
-            articles.forEach((article, index) => {
-                newsMessage += ` Headline ${index + 1}: ${article.webTitle}.`;
-            });
-
-            displayMessage(newsMessage, 'groq-response'); // Display in chat box
-            speakText(newsMessage); // Speak the headlines
-        } else {
-            const errorMessage = "I couldn't fetch the news. Please try again later.";
-            displayMessage(errorMessage, 'groq-response');
-            speakText(errorMessage);
-        }
-    } catch (error) {
-        console.error("Error fetching news data:", error);
-        const errorMessage = "There was an error retrieving the news. Please try again later.";
-        displayMessage(errorMessage, 'groq-response');
-        speakText(errorMessage);
-    }
-}
-
-// Add "news" command handling in speech recognition logic
-recognition.onresult = (event) => {
-    let transcript = '';
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
-    }
-    transcript = transcript.trim().toLowerCase();
-    console.log("Transcript:", transcript);
-
-    if (transcript.includes(wakeWord) && !isListeningForCommand) {
-        console.log("Wake word detected!");
-        playWakeWordSound();
-        isListeningForCommand = true;
-        displayMessage("Listening for your command...", 'groq-response');
-        commandBuffer = '';
-        return;
-    }
-
-    if (isListeningForCommand && transcript && transcript !== wakeWord) {
-        if (transcript.length < 3) {
-            return;
-        }
-
-        commandBuffer = transcript;
-        console.log("Captured command:", commandBuffer);
-
-        // Handle "what is the news" command
-        if (commandBuffer.includes("what is the news")) {
-            displayMessage("Fetching the top news headlines...", 'groq-response');
-            speakText("Fetching the top news headlines...");
-            getNewsHeadlines();
-        }
-
-        // Handle other commands as usual
-        else if (commandBuffer.includes('cancel the alarm')) {
-            if (activeAlarm) {
-                clearTimeout(activeAlarm);
-                activeAlarm = null;
-                alarmTime = null;
-                displayMessage("Alarm has been canceled.", 'groq-response');
-                speakText("Alarm has been canceled.");
-            } else {
-                displayMessage("No active alarm to cancel.", 'groq-response');
-                speakText("No active alarm to cancel.");
-            }
-        } else {
-            displayMessage("Processing your request...", 'groq-response');
-            sendToGroq(commandBuffer);
-        }
-
-        commandBuffer = ''; // Reset buffer after processing
-        isListeningForCommand = false; // End listening for command
-    }
-
-    resetInactivityTimer();
-};
-                    }
-
-                    // What is the score or who is winning
-                    else if (commandBuffer.includes("what is the score") || commandBuffer.includes("who is winning")) {
-                        // Your sports score fetch logic here
-                        const sportsApiKey = 'YOUR_SPORTS_API_KEY'; // Replace with your Sports API key
-
-// Function to fetch live sports scores
-async function getSportsScores() {
-    try {
-        // Example API endpoint for live scores
-        const sportsUrl = `https://api.sportsapi.com/v1/scores/live?api_key=${sportsApiKey}`;
-        const sportsResponse = await fetch(sportsUrl);
-        const sportsData = await sportsResponse.json();
-
-        if (sportsData && sportsData.length > 0) {
-            let scoresMessage = "Here are the current sports scores:";
-            sportsData.forEach((game, index) => {
-                const { homeTeam, awayTeam, homeScore, awayScore, status } = game;
-                scoresMessage += ` Game ${index + 1}: ${homeTeam} ${homeScore} - ${awayTeam} ${awayScore}. Status: ${status}.`;
-            });
-
-            displayMessage(scoresMessage, 'groq-response'); // Display in chat box
-            speakText(scoresMessage); // Speak the scores
-        } else {
-            const noScoresMessage = "I couldn't find any live games at the moment.";
-            displayMessage(noScoresMessage, 'groq-response');
-            speakText(noScoresMessage);
-        }
-    } catch (error) {
-        console.error("Error fetching sports scores:", error);
-        const errorMessage = "There was an error retrieving the sports scores. Please try again later.";
-        displayMessage(errorMessage, 'groq-response');
-        speakText(errorMessage);
-    }
-}
-
-// Add "sports scores" command handling in speech recognition logic
-recognition.onresult = (event) => {
-    let transcript = '';
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
-    }
-    transcript = transcript.trim().toLowerCase();
-    console.log("Transcript:", transcript);
-
-    if (transcript.includes(wakeWord) && !isListeningForCommand) {
-        console.log("Wake word detected!");
-        playWakeWordSound();
-        isListeningForCommand = true;
-        displayMessage("Listening for your command...", 'groq-response');
-        commandBuffer = '';
-        return;
-    }
-
-    if (isListeningForCommand && transcript && transcript !== wakeWord) {
-        if (transcript.length < 3) {
-            return;
-        }
-
-        commandBuffer = transcript;
-        console.log("Captured command:", commandBuffer);
-
-        // Handle "what is the score" or "who is winning" command
-        if (
-            commandBuffer.includes("what is the score") ||
-            commandBuffer.includes("who is winning") ||
-            commandBuffer.includes("sports scores")
-        ) {
-            displayMessage("Fetching the latest sports scores...", 'groq-response');
-            speakText("Fetching the latest sports scores...");
-            getSportsScores();
-        }
-
-        // Handle other commands as usual
-        else {
-            displayMessage("Processing your request...", 'groq-response');
-            sendToGroq(commandBuffer);
-        }
-
-        commandBuffer = ''; // Reset buffer after processing
-        isListeningForCommand = false; // End listening for command
-    }
-
-    resetInactivityTimer();
-};
-                    }
-
-                    // Search for (searches the web)
-                    else if (commandBuffer.startsWith("search for")) {
-                        const searchTerm = commandBuffer.slice(11); // Extract search term
-                        // Your web search logic here
-                         // Search the web
-    function searchWeb(query) {
-        const searchQuery = query.replace("search for", "").trim();
-        if (searchQuery) {
-            window.open(`https://www.google.com/search?q=${searchQuery}`);
-            speakText(`Searching for ${searchQuery}`);
-        } else {
-            speakText("Please specify what you'd like to search for.");
-        }
-    }
-                    }
-
-                    // New movies or what movies are playing
-                    else if (commandBuffer.includes("what are some new movies") || commandBuffer.includes("what movies are playing")) {
-                        // Your movie fetch logic here
-                        const movieApiKey = 'YOUR_TMDB_API_KEY'; // Replace with your TMDb API key
-
-// Function to fetch new movie releases
-async function getNewMovies() {
-    try {
-        // Example TMDb endpoint for now playing movies
-        const movieUrl = `https://api.themoviedb.org/3/movie/now_playing?api_key=${movieApiKey}&language=en-US&page=1`;
-        const movieResponse = await fetch(movieUrl);
-        const movieData = await movieResponse.json();
-
-        if (movieData.results && movieData.results.length > 0) {
-            let movieMessage = "Here are some new movies now playing:";
-            movieData.results.slice(0, 5).forEach((movie, index) => {
-                const title = movie.title;
-                const releaseDate = movie.release_date;
-                movieMessage += ` Movie ${index + 1}: "${title}" released on ${releaseDate}.`;
-            });
-
-            displayMessage(movieMessage, 'groq-response'); // Display in chat box
-            speakText(movieMessage); // Speak the movie list
-        } else {
-            const noMoviesMessage = "I couldn't find any new movies at the moment.";
-            displayMessage(noMoviesMessage, 'groq-response');
-            speakText(noMoviesMessage);
-        }
-    } catch (error) {
-        console.error("Error fetching new movies:", error);
-        const errorMessage = "There was an error retrieving the movie list. Please try again later.";
-        displayMessage(errorMessage, 'groq-response');
-        speakText(errorMessage);
-    }
-}
-
-// Add "new movies" command handling in speech recognition logic
-recognition.onresult = (event) => {
-    let transcript = '';
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
-    }
-    transcript = transcript.trim().toLowerCase();
-    console.log("Transcript:", transcript);
-
-    if (transcript.includes(wakeWord) && !isListeningForCommand) {
-        console.log("Wake word detected!");
-        playWakeWordSound();
-        isListeningForCommand = true;
-        displayMessage("Listening for your command...", 'groq-response');
-        commandBuffer = '';
-        return;
-    }
-
-    if (isListeningForCommand && transcript && transcript !== wakeWord) {
-        if (transcript.length < 3) {
-            return;
-        }
-
-        commandBuffer = transcript;
-        console.log("Captured command:", commandBuffer);
-
-        // Handle "new movies" command
-        if (
-            commandBuffer.includes("new movies") ||
-            commandBuffer.includes("what are some new movies") ||
-            commandBuffer.includes("what's playing")
-        ) {
-            displayMessage("Fetching the latest new movies...", 'groq-response');
-            speakText("Fetching the latest new movies...");
-            getNewMovies();
-        }
-
-        // Handle other commands as usual
-        else {
-            displayMessage("Processing your request...", 'groq-response');
-            sendToGroq(commandBuffer);
-        }
-
-        commandBuffer = ''; // Reset buffer after processing
-        isListeningForCommand = false; // End listening for command
-    }
-
-    resetInactivityTimer();
-};
-                    }
-
-                    // New music
-                    else if (commandBuffer.includes("what is some new music")) {
-                        // Your new music fetch logic here
-                        const spotifyAccessToken = 'YOUR_SPOTIFY_ACCESS_TOKEN'; // Replace with your Spotify access token
-
-// Function to fetch new music releases
-async function getNewMusicReleases() {
-    try {
-        const musicUrl = `https://api.spotify.com/v1/browse/new-releases?limit=5`;
-        const response = await fetch(musicUrl, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${spotifyAccessToken}`,
-                'Content-Type': 'application/json'
-            }
-        });
-
-        const data = await response.json();
-
-        if (data.albums && data.albums.items.length > 0) {
-            let musicMessage = "Here are some new music releases:";
-            data.albums.items.forEach((album, index) => {
-                const albumName = album.name;
-                const artistName = album.artists.map(artist => artist.name).join(", ");
-                const releaseDate = album.release_date;
-                musicMessage += ` Album ${index + 1}: "${albumName}" by ${artistName}, released on ${releaseDate}.`;
-            });
-
-            displayMessage(musicMessage, 'groq-response'); // Display in chat box
-            speakText(musicMessage); // Speak the music list
-        } else {
-            const noMusicMessage = "I couldn't find any new music releases at the moment.";
-            displayMessage(noMusicMessage, 'groq-response');
-            speakText(noMusicMessage);
-        }
-    } catch (error) {
-        console.error("Error fetching new music releases:", error);
-        const errorMessage = "There was an error retrieving the music list. Please try again later.";
-        displayMessage(errorMessage, 'groq-response');
-        speakText(errorMessage);
-    }
-}
-
-// Add "new music" command handling in speech recognition logic
-recognition.onresult = (event) => {
-    let transcript = '';
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
-    }
-    transcript = transcript.trim().toLowerCase();
-    console.log("Transcript:", transcript);
-
-    if (transcript.includes(wakeWord) && !isListeningForCommand) {
-        console.log("Wake word detected!");
-        playWakeWordSound();
-        isListeningForCommand = true;
-        displayMessage("Listening for your command...", 'groq-response');
-        commandBuffer = '';
-        return;
-    }
-
-    if (isListeningForCommand && transcript && transcript !== wakeWord) {
-        if (transcript.length < 3) {
-            return;
-        }
-
-        commandBuffer = transcript;
-        console.log("Captured command:", commandBuffer);
-
-        // Handle "new music" command
-        if (
-            commandBuffer.includes("new music") ||
-            commandBuffer.includes("what are some new music") ||
-            commandBuffer.includes("what's new in music")
-        ) {
-            displayMessage("Fetching the latest music releases...", 'groq-response');
-            speakText("Fetching the latest music releases...");
-            getNewMusicReleases();
-        }
-
-        // Handle other commands as usual
-        else {
-            displayMessage("Processing your request...", 'groq-response');
-            sendToGroq(commandBuffer);
-        }
-
-        commandBuffer = ''; // Reset buffer after processing
-        isListeningForCommand = false; // End listening for command
-    }
-
-    resetInactivityTimer();
-};
-                    }
-
-                  // Spotify API variables
-const spotifyToken = 'YOUR_SPOTIFY_ACCESS_TOKEN'; // Replace with your Spotify token
-let player;
-
-// Initialize speech recognition
-function initializeSpeechRecognition() {
-    if (!('webkitSpeechRecognition' in window)) {
-        alert("Speech recognition is not supported by this browser.");
-        return;
-    }
-
-    recognition = new webkitSpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = false;
-    recognition.lang = "en-US";
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => {
-        console.log("Speech recognition started.");
-        recognizing = true;
-    };
-
-    recognition.onresult = (event) => {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-            transcript += event.results[i][0].transcript;
-        }
-        transcript = transcript.trim().toLowerCase();
-        console.log("Transcript:", transcript);
-
-        // Detect wake word and command
-        if (transcript.includes(wakeWord) && !isListeningForCommand) {
-            console.log("Wake word detected!");
-            isListeningForCommand = true;
-            displayMessage("Listening for your command...", 'groq-response');
-            commandBuffer = '';
-            return; // Continue listening for the next command
-        }
-
-        if (isListeningForCommand && transcript && transcript !== wakeWord) {
-            if (transcript.length < 3) {
-                return; // Avoid processing very short commands
-            }
-
-            commandBuffer = transcript;
-            console.log("Captured command:", commandBuffer);
-
-            // Spotify-related commands
-            if (commandBuffer.includes('play') || commandBuffer.includes('pause') || commandBuffer.includes('next') || commandBuffer.includes('previous')) {
-                controlSpotify(commandBuffer);
-            } else {
-                displayMessage("Sorry, I didn't understand that command.", 'groq-response');
-            }
-
-            isListeningForCommand = false;
-            commandBuffer = ''; // Reset command buffer
-        }
-    };
-
-    recognition.onerror = (event) => {
-        console.error("Speech recognition error:", event.error);
-    };
-
-    recognition.onend = () => {
-        console.log("Speech recognition ended.");
-        recognizing = false;
-        recognition.start(); // Restart recognition when it ends
-    };
-
-    recognition.start();
-}
-
-// Send command to control Spotify
-function controlSpotify(command) {
-    if (command.includes('play')) {
-        playSpotify();
-    } else if (command.includes('pause')) {
-        pauseSpotify();
-    } else if (command.includes('next')) {
-        nextTrackSpotify();
-    } else if (command.includes('previous')) {
-        previousTrackSpotify();
-    }
-}
-
-// Play Spotify
-function playSpotify() {
-    fetch('https://api.spotify.com/v1/me/player/play', {
-        method: 'PUT',
-        headers: {
-            'Authorization': `Bearer ${spotifyToken}`,
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log("Playback started:", data);
-        displayMessage("Playing music...", 'groq-response');
-    })
-    .catch(error => console.error('Error playing Spotify:', error));
-}
-
-// Pause Spotify
-function pauseSpotify() {
-    fetch('https://api.spotify.com/v1/me/player/pause', {
-        method: 'PUT',
-        headers: {
-            'Authorization': `Bearer ${spotifyToken}`,
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log("Playback paused:", data);
-        displayMessage("Music paused.", 'groq-response');
-    })
-    .catch(error => console.error('Error pausing Spotify:', error));
-}
-
-// Next track on Spotify
-function nextTrackSpotify() {
-    fetch('https://api.spotify.com/v1/me/player/next', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${spotifyToken}`,
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log("Next track:", data);
-        displayMessage("Skipping to next track.", 'groq-response');
-    })
-    .catch(error => console.error('Error skipping to next track:', error));
-}
-
-// Previous track on Spotify
-function previousTrackSpotify() {
-    fetch('https://api.spotify.com/v1/me/player/previous', {
-        method: 'POST',
-        headers: {
-            'Authorization': `Bearer ${spotifyToken}`,
-            'Content-Type': 'application/json'
-        }
-    })
-    .then(response => response.json())
-    .then(data => {
-        console.log("Previous track:", data);
-        displayMessage("Going to the previous track.", 'groq-response');
-    })
-    .catch(error => console.error('Error going to previous track:', error));
-}
-
-// Display messages in the chat box
-function displayMessage(content, className) {
-    const messageElement = document.createElement('div');
-    messageElement.classList.add('message', className);
-    messageElement.textContent = content;
-    chatBox.appendChild(messageElement);
-    chatBox.scrollTop = chatBox.scrollHeight;
-}
-
-// Handle the user's text input
-function handleUserInput() {
-    const userMessage = userInput.value.trim();
-    if (userMessage) {
-        displayMessage(userMessage, 'user-message');
-        // You can process user input here (e.g., send to server or command handler)
-        userInput.value = '';
-    }
-}
-                    // Other commands to send to Groq
-                    else {
-                        displayMessage("Processing your request...", 'groq-response');
-                        sendToGroq(commandBuffer); // Send other commands to Groq
-                    }
-
-                    commandBuffer = ''; // Reset buffer after processing
-                    isListeningForCommand = false; // End listening for command
-                }
-
-                resetInactivityTimer(); // Reset inactivity timer after receiving speech
-            };
-
-            recognition.onerror = (event) => {
-                console.error("Speech recognition error:", event.error);
-                restartSpeechRecognition(); // Restart recognition on error
             };
 
             recognition.onend = () => {
                 console.log("Speech recognition ended.");
-                recognizing = false; // Reset recognizing flag
-                restartSpeechRecognition(); // Restart recognition when it ends
+                recognizing = false;
             };
 
-            if (!recognizing) { // Only start recognition if it's not already running
-                recognition.start();
+            recognition.onerror = (event) => {
+                console.error("Speech recognition error:", event.error);
+            };
+        }
+
+        // Process the command
+        function processCommand(command) {
+            if (command.includes("search")) {
+                let query = command.replace("search", "").trim();
+                searchWeb(query);
+            } else if (command.includes("weather")) {
+                getWeather();
+            } else if (command.includes("play")) {
+                playMusic(command);
+            } else if (command.includes("news")) {
+                getNews();
+            } else if (command.includes("time")) {
+                getTime();
+            } else if (command.includes("set timer")) {
+                setTimer(command);
+            } else if (command.includes("set alarm")) {
+                setAlarm(command);
+            } else if (command.includes("movies")) {
+                getMovies();
+            } else {
+                displayMessage("Sorry, I didn't understand that command.", 'groq-response');
             }
         }
 
-           
-
-        // Function to restart speech recognition
-        function restartSpeechRecognition() {
-            console.log("Restarting speech recognition...");
-            if (recognition) {
-                recognition.stop(); // Stop current recognition
-                recognition.start(); // Restart recognition
+        // Set timer functionality
+        function setTimer(command) {
+            let minutes = command.match(/\d+/); // Extract number
+            if (minutes) {
+                let timerMinutes = parseInt(minutes[0]);
+                displayMessage(`Setting a timer for ${timerMinutes} minutes.`, 'groq-response');
+                timer = setTimeout(() => {
+                    displayMessage("Timer ended! Time's up!", 'groq-response');
+                    alert("Time's up!");
+                }, timerMinutes * 60000); // Convert to milliseconds
+            } else {
+                displayMessage("Please specify the number of minutes for the timer.", 'groq-response');
             }
         }
 
-        // Function to play sound when wake word is detected
-        function playWakeWordSound() {
-            const audio = new Audio('activation.wav');
-            audio.play();
+        // Set alarm functionality
+        function setAlarm(command) {
+            let time = command.match(/\d{1,2}:\d{2}/); // Extract time in hh:mm format
+            if (time) {
+                let alarmTime = time[0];
+                let [hour, minute] = alarmTime.split(":").map(num => parseInt(num));
+                let now = new Date();
+                let alarmDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0, 0);
+                let timeUntilAlarm = alarmDate - now;
+
+                if (timeUntilAlarm < 0) {
+                    alarmDate.setDate(alarmDate.getDate() + 1); // If the time is in the past, set it for the next day
+                    timeUntilAlarm = alarmDate - now;
+                }
+
+                displayMessage(`Alarm set for ${alarmTime}.`, 'groq-response');
+                alarmTimeout = setTimeout(() => {
+                    displayMessage("Alarm ringing! Wake up!", 'groq-response');
+                    alert("Alarm ringing! Wake up!");
+                }, timeUntilAlarm);
+            } else {
+                displayMessage("Please specify a valid time for the alarm (in hh:mm format).", 'groq-response');
+            }
         }
 
-        // Send the user's input to Groq
-        function sendToGroq(prompt) {
-            fetch("https://api.groq.com/openai/v1/chat/completions", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${apiKey}`,
-                },
-                body: JSON.stringify({
-                    model: "llama-3.3-70b-versatile",
-                    messages: [{
-                        role: "user",
-                        content: prompt
-                    }]
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                displayMessage(data.choices[0].message.content, 'groq-response');
-                console.log("Groq response:", data.choices[0].message.content);
-                lastGroqResponse = data.choices[0].message.content;
-                speakText(lastGroqResponse);
-            })
-            .catch(error => {
-                console.error("Error:", error);
-                displayMessage("Error communicating with Groq.", 'groq-response');
-            });
+        // Fetch movie recommendations from TMDB
+        async function getMovies() {
+            try {
+                const response = await fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${tmdbApiKey}&sort_by=popularity.desc`);
+                const data = await response.json();
+                const movies = data.results.slice(0, 3);
+                let movieList = movies.map(movie => `<p><a href="https://www.themoviedb.org/movie/${movie.id}" target="_blank">${movie.title}</a></p>`).join('');
+                displayMessage(`Here are the top movies:<br>${movieList}`, 'groq-response');
+            } catch (error) {
+                console.error('Movie error:', error);
+                displayMessage('Error occurred while fetching movies.', 'groq-response');
+            }
         }
 
-        // Display a message in the chat box
-        function displayMessage(content, className) {
+        // Play music via Spotify API (Placeholder for now)
+        async function playMusic(command) {
+            const song = command.replace("play", "").trim();
+            displayMessage(`Playing song: ${song}`, 'groq-response');
+        }
+
+        // Fetch weather data
+        async function getWeather() {
+            try {
+                const weatherResponse = await fetch(`https://api.weatherbit.io/v2.0/current?city=London&key=${weatherApiKey}`);
+                const weatherData = await weatherResponse.json();
+                const temperature = weatherData.data[0].temp;
+                const description = weatherData.data[0].weather.description;
+                displayMessage(`Current weather in London: ${temperature}°C, ${description}.`, 'groq-response');
+            } catch (error) {
+                console.error('Weather error:', error);
+                displayMessage('Error occurred while fetching the weather.', 'groq-response');
+            }
+        }
+
+        // Get current time
+        function getTime() {
+            const currentTime = new Date().toLocaleTimeString();
+            displayMessage(`The current time is: ${currentTime}`, 'groq-response');
+        }
+
+        // Display messages in chat
+        function displayMessage(message, sender = 'user-message') {
             const messageElement = document.createElement('div');
-            messageElement.classList.add('message', className);
-            messageElement.textContent = content;
+            messageElement.className = 'message ' + sender;
+            messageElement.innerHTML = message;
             chatBox.appendChild(messageElement);
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        // Handle the user's text input
-        function handleUserInput() {
-            const userMessage = userInput.value.trim();
-            if (userMessage) {
-                displayMessage(userMessage, 'user-message');
-                sendToGroq(userMessage);
+        // Play wake word sound
+        function playWakeWordSound() {
+            const audio = new Audio('wake-word-sound.mp3');
+            audio.play();
+        }
+
+        // Initialize speech recognition
+        requestMicrophoneAccess().then(() => {
+            initializeSpeechRecognition();
+        });
+
+        // Handle sending text input
+        sendButton.addEventListener('click', () => {
+            const text = userInput.value.trim();
+            if (text) {
+                displayMessage(text, 'user-message');
                 userInput.value = '';
+                processCommand(text);
             }
-        }
+        });
 
-        // Text-to-Speech (TTS) Function
-        function speakText(text) {
-            if ('speechSynthesis' in window) {
-                const utterance = new SpeechSynthesisUtterance(text);
-                speechSynthesis.speak(utterance);
-            } else {
-                console.log("TTS is not supported by this browser.");
-            }
-        }
-
-               // Weather Fetch with Location
-        function fetchWeather() {
-            if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((position) => {
-                    const latitude = position.coords.latitude;
-                    const longitude = position.coords.longitude;
-        
-                    // Fetch weather using the latitude and longitude
-                    const weatherUrl = `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${latitude},${longitude}&aqi=no`;
-        
-                    fetch(weatherUrl)
-                        .then(response => response.json())
-                        .then(data => {
-                            const temperature = data.current.temp_c;
-                            const description = data.current.condition.text;
-                            const weatherText = `${temperature}°C, ${description}`;
-                            document.getElementById('weather-info').textContent = weatherText;
-                        })
-                        .catch(error => {
-                            console.error("Error fetching weather data:", error);
-                            document.getElementById('weather-info').textContent = "Failed to load weather.";
-                        });
-                }, () => {
-                    document.getElementById('weather-info').textContent = "Geolocation access denied.";
-                });
-            } else {
-                document.getElementById('weather-info').textContent = "Geolocation not supported by this browser.";
-            }
-        }
-
-        // News Fetch - The Guardian
-        function fetchNews() {
-            const guardianUrl = `https://content.guardianapis.com/search?api-key=${guardianApiKey}`;
-
-            fetch(guardianUrl)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.response && data.response.results) {
-                        const articles = data.response.results;
-                        let newsText = '';
-                        articles.forEach((article, index) => {
-                            if (index < 3) {
-                                newsText += `<strong>${article.webTitle}</strong><br><a href="${article.webUrl}" target="_blank">${article.sectionName}</a><br><br>`;
-                            }
-                        });
-                        document.getElementById('news-info').innerHTML = newsText || "No news available.";
-                    } else {
-                        console.error("No articles available");
-                        document.getElementById('news-info').textContent = "Failed to load news.";
-                    }
-                })
-                .catch(error => {
-                    console.error("Error fetching news data:", error);
-                    document.getElementById('news-info').textContent = "Failed to load news.";
-                });
-        }
-
-        // Inactivity reset timer
+        // Inactivity timeout handler
         function resetInactivityTimer() {
             clearTimeout(inactivityTimeout);
             inactivityTimeout = setTimeout(() => {
-                console.log("No activity detected, silently refreshing...");
-                silentRefresh();
+                if (!recognizing) {
+                    console.log("Inactivity detected.");
+                    displayMessage("I have been inactive for a while. Please say 'Hey Friday' to continue.", 'groq-response');
+                }
             }, INACTIVITY_TIMEOUT);
         }
-
-        // Silent refresh function
-        function silentRefresh() {
-            // Refresh weather and news (fetch again or reset display)
-            fetchWeather();   // Fetch weather again to reset the data
-            fetchNews();      // Fetch news again to reset the data
-
-            // Reset Text-to-Speech (TTS) functionality if needed
-            if ('speechSynthesis' in window) {
-                speechSynthesis.cancel();  // Stop any ongoing TTS before restarting
-            }
-
-            // Restart speech recognition (SST)
-            if (!recognizing) { // Ensure we restart only if recognition is not running
-                recognition.start();
-            }
-
-            // Optionally log or perform any other reset logic
-            console.log("Assistant's TTS, SST, weather, and news have been refreshed.");
-        }
-
-        // Setup and initialize the assistant when the page loads
-        window.onload = function () {
-            fetchWeather();
-            fetchNews();
-            requestMicrophoneAccess().then(() => {
-                initializeSpeechRecognition(); // Initialize speech recognition after microphone access is granted
-            }).catch((error) => {
-                console.error(error);
-                alert("Assistant cannot run without microphone access.");
-            });
-
-            sendButton.addEventListener('click', handleUserInput);
-        };
     </script>
 </body>
 </html>
