@@ -459,42 +459,45 @@
                 sendButton.addEventListener('click', handleUserInput);
             };
 
-                   // Process the command
-            function processCommand(command) {
-                if (command.includes("set a timer")) {
-                    setTimer(command); // Prioritize setting a timer
-                } else if (command.includes("set an alarm")) {
-                    setAlarm(command);
-                } else if (command.includes("play")) {
-                    playMusic(command);
-                } else if (command.includes("search")) {
-                    let query = command.replace("search", "").trim();
-                    searchWeb(query);
-                } else if (command.includes("weather")) {
-                    getWeather();
-                } else if (command.includes("news")) {
-                    getNews();
-                } else if (command.includes("time")) {
-                    getTime(); // Only check for time if no other "time-related" commands exist
-                } else if (
-                    command.includes("new movies") || 
-                    command.includes("latest movies") || 
-                    command.includes("recent movies") || 
-                    command.includes("top movies")
-                ) {
-                    getMovies();
-                } else if (
-                    command.includes("sports scores") || 
-                    command.includes("live scores") || 
-                    command.includes("sports schedule") || 
-                    command.includes("upcoming sports") ||
-                    command.includes("who is winning") // Look for specific winning query
-                ) {
-                    getSportsScores(command); // Pass the command for sports processing
-                } else {
-                    sendToGroq(command); // Send to Groq if no matches
-                }
-            }
+                
+           // Process the command and check for flexible queries
+function processCommand(command) {
+    command = command.toLowerCase(); // Normalize the command for case-insensitive matching
+
+    // First, check for specific commands that we can map directly
+    if (command.includes("set a timer")) {
+        setTimer(command); // Timer handling
+    } else if (command.includes("set an alarm")) {
+        setAlarm(command);
+    } else if (command.includes("play")) {
+        playMusic(command);
+    } else if (command.includes("weather")) {
+        getWeather();
+    } else if (command.includes("news")) {
+        getNews();
+    } else if (command.includes("time")) {
+        getTime();
+    } else if (
+        command.includes("new movies") ||
+        command.includes("latest movies") ||
+        command.includes("recent movies") ||
+        command.includes("top movies")
+    ) {
+        getMovies();
+    } else if (
+        command.includes("score") || 
+        command.includes("game") || 
+        command.includes("match") || 
+        command.includes("winning") || 
+        command.includes("schedule")
+    ) {
+        // General sports-related queries like score, who is winning, or match schedule
+        getSportsScores(command);
+    } else {
+        sendToGroq(command); // Send to Groq if no matches
+    }
+}
+
 
 
 
@@ -718,9 +721,9 @@ async function getSportsScores(command) {
     const SEARCH_ENGINE_ID = '64e19cd1bf5ee4bf1';  // Your Custom Search Engine ID
 
     try {
-        // Look for keywords in the command related to sports events
-        if (command.includes("game") || command.includes("time") || command.includes("schedule")) {
-            const query = `sports schedule ${command}`;
+        // Check if the user is asking for score, schedule, or game details
+        if (command.includes("score") || command.includes("game") || command.includes("match")) {
+            const query = `sports score ${command}`;
 
             // Fetch search results from Google Custom Search API
             const searchResponse = await fetch(`https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(query)}&key=${API_KEY}&cx=${SEARCH_ENGINE_ID}`);
@@ -742,8 +745,31 @@ async function getSportsScores(command) {
                 displayMessage(noResultsMessage, 'groq-response');
                 speakText(noResultsMessage);  // Speak the error message using TTS
             }
+        } else if (command.includes("schedule")) {
+            const query = `sports schedule ${command}`;
+
+            // Fetch search results from Google Custom Search API
+            const searchResponse = await fetch(`https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(query)}&key=${API_KEY}&cx=${SEARCH_ENGINE_ID}`);
+            const searchData = await searchResponse.json();
+
+            if (searchData.items && searchData.items.length > 0) {
+                const scheduleDetails = searchData.items[0];  // Get the first result, assuming it has relevant data
+
+                const title = scheduleDetails.title;  // Game name or title
+                const snippet = scheduleDetails.snippet;  // A short description of the schedule
+                const link = scheduleDetails.link;  // Link to the page with more details
+
+                // Prepare and display the result
+                const scheduleMessage = `Schedule: ${title}\nDetails: ${snippet}\nMore Info: ${link}`;
+                displayMessage(scheduleMessage, 'groq-response');
+                speakText(scheduleMessage);  // Speak the schedule information using TTS
+            } else {
+                const noResultsMessage = "Sorry, I couldn't find the schedule you're looking for.";
+                displayMessage(noResultsMessage, 'groq-response');
+                speakText(noResultsMessage);  // Speak the error message using TTS
+            }
         } else {
-            const errorMessage = "Please specify the team or game you're looking for.";
+            const errorMessage = "Please specify the team or game you're looking for (e.g., 'score of the game', 'schedule for Lakers').";
             displayMessage(errorMessage, 'groq-response');
             speakText(errorMessage);  // Speak the error message using TTS
         }
@@ -754,7 +780,6 @@ async function getSportsScores(command) {
         speakText(errorMessage);  // Speak the error message using TTS
     }
 }
-
 
         
     </script>
