@@ -1,6 +1,7 @@
 <html lang="en">
 <head>
     <script src="chrome-extension://mooikfkahbdckldjjndioackbalphokd/assets/prompt.js"></script>
+    <script src="https://www.youtube.com/iframe_api"></script>
     <style type="text/css">
         .fc-ab-root { display: none !important } 
         body > div.fc-ab-root { display: none !important } 
@@ -117,12 +118,43 @@
             transition: transform 0.1s ease-out;
             z-index: -1;
         }
-        #player {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-}
+                   #youtube-player-container {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            width: 300px;
+            height: 170px;
+            background: #000;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        #youtube-player-container iframe {
+            width: 100%;
+            height: 100%;
+        }
+        #controls {
+            position: fixed;
+            bottom: 200px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            align-items: center;
+        }
+        .control-button {
+            padding: 8px 12px;
+            cursor: pointer;
+            background: #007BFF;
+            color: #FFF;
+            border: none;
+            border-radius: 4px;
+        }
+        .hidden {
+            display: none;
+        }
         
     </style>
 </head>
@@ -147,8 +179,20 @@
     </div>
 
     <div id="orb"></div> <!-- Orb in the background -->
-     <div id="player">
-        <iframe src="https://open.spotify.com/" width="300" height="80" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+    
+      <div id="assistant">
+        <div id="youtube-player-container">
+            <div id="youtube-player"></div>
+        </div>
+        <div id="controls">
+            <button id="play" class="control-button">Play</button>
+            <button id="pause" class="control-button">Pause</button>
+            <button id="mute" class="control-button">Mute</button>
+            <button id="unmute" class="control-button">Unmute</button>
+            <input id="volume" type="range" min="0" max="100" value="50">
+            <button id="toggle-video" class="control-button">Show Video</button>
+        </div>
+        <div id="messages"></div>
     </div>
     <script>
         const apiKey = "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"; // Groq API key
@@ -475,7 +519,28 @@ function processCommand(command) {
     } else if (command.includes("weather")) {
         getWeather();
     } else if (command.includes("play")) {
-        playMusic(command);
+        playMusic(command); // Updated for YouTube music playback
+    } else if (command.includes("pause")) {
+        pauseYouTubeVideo(); // Pauses the YouTube video
+    } else if (command.includes("resume") || command.includes("play video")) {
+        playYouTubeVideo(); // Resumes the YouTube video
+    } else if (command.includes("skip")) {
+        skipToNextSong(); // Skips to the next song
+    } else if (command.includes("mute")) {
+        muteYouTubeVideo(); // Mutes the video
+    } else if (command.includes("unmute")) {
+        unmuteYouTubeVideo(); // Unmutes the video
+    } else if (command.includes("volume")) {
+        let volume = command.match(/\d+/); // Extract volume percentage
+        if (volume) {
+            setYouTubeVolume(parseInt(volume[0])); // Set volume level
+        } else {
+            displayMessage("Please specify a volume level.", "groq-response");
+        }
+    } else if (command.includes("show video")) {
+        showVideoPlayer(); // Shows the video in PiP
+    } else if (command.includes("hide video")) {
+        hideVideoPlayer(); // Hides the video in PiP
     } else if (command.includes("news")) {
         getNews();
     } else if (command.includes("time")) {
@@ -490,12 +555,11 @@ function processCommand(command) {
         command.includes("recent movies") || 
         command.includes("top movies")
     ) {
-        getMovies();  // Fetch movies for any flexible movie-related command
+        getMovies(); // Fetch movies for any flexible movie-related command
     } else {
         sendToGroq(command); // Send the command to Groq by default
     }
 }
-
 
 
 
@@ -596,34 +660,114 @@ function setTimer(command) {
             }
         }
 
-              // Play music via Spotify using iframe
-        async function playMusic(command) {
-            const song = command.replace("play", "").trim();
-        
-            if (song) {
-                // Display message to the user about the song being played
-                displayMessage(`Playing song: ${song}`, 'groq-response');
-        
-                // Replace spaces with '+' to create a search query for Spotify
-                const searchQuery = song.split(" ").join("+");
-        
-                // Construct the Spotify URL for the search query
-                const spotifySearchUrl = `https://open.spotify.com/search/${searchQuery}`;
-        
-                // For now, use a hardcoded URL for a specific song. Replace with a dynamic URL logic if needed.
-                const specificSongUrl = `https://open.spotify.com/embed/track/0VjIjW4GlUZAMYd6sSx4Y5`;  // Example URL, replace with a dynamic track URL if needed
-                
-                // Get the iframe element inside the #player div
-                const iframe = document.querySelector("#player iframe");
-        
-                // Update the iframe's src to play the requested song
-                iframe.src = specificSongUrl;
-        
+             let player;
+        let currentVideoId = "";
+
+        // Load YouTube Iframe API
+        function onYouTubeIframeAPIReady() {
+            player = new YT.Player('youtube-player', {
+                height: '390',
+                width: '640',
+                events: {
+                    onReady: onPlayerReady,
+                }
+            });
+        }
+
+        function onPlayerReady(event) {
+            console.log("YouTube Player is ready.");
+        }
+
+        // Play a song based on voice command
+        function playMusic(command) {
+            const query = command.replace("play", "").trim();
+            if (query) {
+                searchYouTube(query);
             } else {
-                // If no song was specified, prompt the user
-                displayMessage("Please specify a song to play.", 'groq-response');
+                displayMessage("Please specify a song or artist to play.");
             }
         }
+
+        // Search YouTube and load the video
+        function searchYouTube(query) {
+            const apiKey = "YOUR_YOUTUBE_API_KEY";
+            const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(query)}&key=${apiKey}`;
+            fetch(url)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.items && data.items.length > 0) {
+                        const videoId = data.items[0].id.videoId;
+                        currentVideoId = videoId;
+                        loadYouTubeVideo(videoId);
+                    } else {
+                        displayMessage("No results found for your query.");
+                    }
+                })
+                .catch(error => {
+                    console.error("Error searching YouTube:", error);
+                    displayMessage("Error searching for the song.");
+                });
+        }
+
+        // Load video in YouTube player
+        function loadYouTubeVideo(videoId) {
+            player.loadVideoById(videoId);
+            player.playVideo();
+            document.getElementById('youtube-player-container').style.display = "block";
+        }
+
+        // Voice command handlers
+        function pauseYouTubeVideo() {
+            if (player && player.pauseVideo) {
+                player.pauseVideo();
+                displayMessage("Playback paused.");
+            }
+        }
+
+        function playYouTubeVideo() {
+            if (player && player.playVideo) {
+                player.playVideo();
+                displayMessage("Playback resumed.");
+            }
+        }
+
+        function muteYouTubeVideo() {
+            if (player && player.mute) {
+                player.mute();
+                displayMessage("Muted.");
+            }
+        }
+
+        function unmuteYouTubeVideo() {
+            if (player && player.unMute) {
+                player.unMute();
+                displayMessage("Unmuted.");
+            }
+        }
+
+        function setYouTubeVolume(level) {
+            if (player && player.setVolume) {
+                player.setVolume(level);
+                displayMessage(`Volume set to ${level}%.`);
+            }
+        }
+
+        // Utility function to display messages
+        function displayMessage(message) {
+            const messagesDiv = document.getElementById('messages');
+            messagesDiv.textContent = message;
+        }
+
+        // Event listeners for controls
+        document.getElementById('play').addEventListener('click', playYouTubeVideo);
+        document.getElementById('pause').addEventListener('click', pauseYouTubeVideo);
+        document.getElementById('mute').addEventListener('click', muteYouTubeVideo);
+        document.getElementById('unmute').addEventListener('click', unmuteYouTubeVideo);
+        document.getElementById('volume').addEventListener('input', (e) => {
+            setYouTubeVolume(e.target.value);
+        });
+
+
 
         // Get current time
         function getTime() {
