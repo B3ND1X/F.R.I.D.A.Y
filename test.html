@@ -716,12 +716,13 @@ async function getTime() {
 async function getSportsScores(command) {
     const API_KEY = 'h0sGgyWZNlAsbxVyyf1Y5W0HboCvhijsRIUbSMzB';
     const sport = 'football'; // You can change this to another sport like 'soccer', 'basketball', etc.
+    const corsProxy = 'https://cors-anywhere.herokuapp.com/'; // CORS proxy to bypass the CORS policy
 
     try {
         // Check if the user is asking for upcoming sports events
         if (command.includes("upcoming sports") || command.includes("next game")) {
-            // Fetch upcoming schedule
-            const scheduleResponse = await fetch(`https://api.sportradar.us/football/trial/v4/en/schedules/next.json?api_key=${API_KEY}`);
+            // Fetch upcoming schedule using the CORS proxy
+            const scheduleResponse = await fetch(`${corsProxy}https://api.sportradar.us/football/trial/v4/en/schedules/next.json?api_key=${API_KEY}`);
             const scheduleData = await scheduleResponse.json();
 
             if (scheduleData && scheduleData.sport_events) {
@@ -750,8 +751,8 @@ async function getSportsScores(command) {
                 const team1 = match[1].trim();
                 const team2 = match[2].trim();
 
-                // Fetch live scores for football (or another sport)
-                const liveScoresResponse = await fetch(`https://api.sportradar.us/football/trial/v4/en/schedules.json?api_key=${API_KEY}`);
+                // Fetch live scores for football (or another sport) using CORS proxy
+                const liveScoresResponse = await fetch(`${corsProxy}https://api.sportradar.us/football/trial/v4/en/schedules.json?api_key=${API_KEY}`);
                 const liveScoresData = await liveScoresResponse.json();
 
                 if (liveScoresData && liveScoresData.sport_events) {
@@ -791,6 +792,7 @@ async function getSportsScores(command) {
         speakText(errorMessage); // Speak the error message using TTS
     }
 }
+
 
         
     </script>
