@@ -582,44 +582,62 @@ async function setTimer(command) {
     }
 }
 
-        // Set alarm functionality
-        function setAlarm(command) {
-            let time = command.match(/\d{1,2}:\d{2}/); // Extract time in hh:mm format
-            if (time) {
-                let alarmTime = time[0];
-                let [hour, minute] = alarmTime.split(":").map(num => parseInt(num));
-                let now = new Date();
-                let alarmDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0, 0);
-                let timeUntilAlarm = alarmDate - now;
+       // Set alarm functionality
+// Set alarm functionality
+async function setAlarm(command) {
+    let time = command.match(/\d{1,2}:\d{2}/); // Extract time in hh:mm format
+    if (time) {
+        let alarmTime = time[0];
+        let [hour, minute] = alarmTime.split(":").map(num => parseInt(num));
+        let now = new Date();
+        let alarmDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0, 0);
+        let timeUntilAlarm = alarmDate - now;
 
-                if (timeUntilAlarm < 0) {
-                    alarmDate.setDate(alarmDate.getDate() + 1); // If the time is in the past, set it for the next day
-                    timeUntilAlarm = alarmDate - now;
-                }
-
-                displayMessage(`Alarm set for ${alarmTime}.`, 'groq-response');
-                alarmTimeout = setTimeout(() => {
-                    displayMessage("Alarm ringing! Wake up!", 'groq-response');
-                    alert("Alarm ringing! Wake up!");
-                }, timeUntilAlarm);
-            } else {
-                displayMessage("Please specify a valid time for the alarm (in hh:mm format).", 'groq-response');
-            }
+        if (timeUntilAlarm < 0) {
+            alarmDate.setDate(alarmDate.getDate() + 1); // If the time is in the past, set it for the next day
+            timeUntilAlarm = alarmDate - now;
         }
 
-               // Fetch movie recommendations from TMDB
-        async function getMovies() {
-            try {
-                const response = await fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${tmdbApiKey}&sort_by=popularity.desc`);
-                const data = await response.json();
-                const movies = data.results.slice(0, 3);  // Get the top 3 movies
-                let movieList = movies.map(movie => movie.title).join('<br>');  // Only show the titles
-                displayMessage(`Here are the top movies:<br>${movieList}`, 'groq-response');
-            } catch (error) {
-                console.error('Movie error:', error);
-                displayMessage('Error occurred while fetching movies.', 'groq-response');
-            }
-        }
+        // Format time to 12-hour format with AM/PM
+        let formattedAlarmTime = `${hour % 12 || 12}:${minute < 10 ? '0' : ''}${minute} ${hour >= 12 ? 'PM' : 'AM'}`;
+
+        const alarmMessage = `Alarm set for ${formattedAlarmTime}.`;
+        displayMessage(alarmMessage, 'groq-response');
+        speakText(alarmMessage); // Speak the alarm set message using TTS
+
+        alarmTimeout = setTimeout(() => {
+            const alarmRingingMessage = "Alarm ringing! Wake up!";
+            displayMessage(alarmRingingMessage, 'groq-response');
+            speakText(alarmRingingMessage); // Speak the alarm ringing message using TTS
+            alert(alarmRingingMessage);
+        }, timeUntilAlarm);
+    } else {
+        const errorMessage = "Please specify a valid time for the alarm (in hh:mm format).";
+        displayMessage(errorMessage, 'groq-response');
+        speakText(errorMessage); // Speak the error message using TTS
+    }
+}
+
+
+             // Fetch movie recommendations from TMDB
+async function getMovies() {
+    try {
+        const response = await fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${tmdbApiKey}&sort_by=popularity.desc`);
+        const data = await response.json();
+        const movies = data.results.slice(0, 3);  // Get the top 3 movies
+        let movieList = movies.map(movie => movie.title).join('<br>');  // Only show the titles
+
+        const movieMessage = `Here are the top movies: ${movies.map(movie => movie.title).join(', ')}`;
+        displayMessage(`Here are the top movies:<br>${movieList}`, 'groq-response');
+        speakText(movieMessage); // Speak the movie recommendations using TTS
+    } catch (error) {
+        console.error('Movie error:', error);
+        const errorMessage = 'Error occurred while fetching movies.';
+        displayMessage(errorMessage, 'groq-response');
+        speakText(errorMessage); // Speak the error message using TTS
+    }
+}
+
             // Play Music with YouTube
             async function playMusic(command) {
     const songOrArtist = command.replace("play", "").trim();
@@ -661,10 +679,16 @@ async function setTimer(command) {
 
 
         // Get current time
-        function getTime() {
-            const currentTime = new Date().toLocaleTimeString();
-            displayMessage(`The current time is: ${currentTime}`, 'groq-response');
-        }
+async function getTime() {
+    const now = new Date();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    const formattedTime = `${hours % 12 || 12}:${minutes < 10 ? '0' : ''}${minutes} ${hours >= 12 ? 'PM' : 'AM'}`;
+
+    const timeMessage = `The current time is: ${formattedTime}`;
+    displayMessage(timeMessage, 'groq-response');
+    speakText(timeMessage); // Speak the current time using TTS
+}
 
         // Search the web
         function searchWeb(query) {
