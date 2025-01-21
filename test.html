@@ -718,46 +718,71 @@ async function getSportsScores(command) {
     const sport = 'football'; // You can change this to another sport like 'soccer', 'basketball', etc.
 
     try {
-        // Extract team names from the command
-        const teamsRegex = /([A-Za-z\s]+)\s+or\s+([A-Za-z\s]+)/i;
-        const match = command.match(teamsRegex);
+        // Check if the user is asking for upcoming sports events
+        if (command.includes("upcoming sports") || command.includes("next game")) {
+            // Fetch upcoming schedule
+            const scheduleResponse = await fetch(`https://api.sportradar.us/football/trial/v4/en/schedules/next.json?api_key=${API_KEY}`);
+            const scheduleData = await scheduleResponse.json();
 
-        if (match) {
-            const team1 = match[1].trim();
-            const team2 = match[2].trim();
+            if (scheduleData && scheduleData.sport_events) {
+                const upcomingSchedule = scheduleData.sport_events.map(event => {
+                    const date = new Date(event.start_time).toLocaleString();
+                    const homeTeam = event.home_team.name;
+                    const awayTeam = event.away_team.name;
+                    return `${date}: ${homeTeam} vs ${awayTeam}`;
+                }).join('\n');
 
-            // Fetch live scores for football (or another sport)
-            const liveScoresResponse = await fetch(`https://api.sportradar.us/football/trial/v4/en/schedules.json?api_key=${API_KEY}`);
-            const liveScoresData = await liveScoresResponse.json();
-
-            if (liveScoresData && liveScoresData.sport_events) {
-                const game = liveScoresData.sport_events.find(event => {
-                    const homeTeam = event.home_team.name.toLowerCase();
-                    const awayTeam = event.away_team.name.toLowerCase();
-                    return (homeTeam.includes(team1.toLowerCase()) && awayTeam.includes(team2.toLowerCase())) || 
-                           (homeTeam.includes(team2.toLowerCase()) && awayTeam.includes(team1.toLowerCase()));
-                });
-
-                if (game) {
-                    const homeTeam = game.home_team.name;
-                    const awayTeam = game.away_team.name;
-                    const homeScore = game.home_team_score;
-                    const awayScore = game.away_team_score;
-                    const winner = homeScore > awayScore ? homeTeam : awayScore > homeScore ? awayTeam : 'It\'s a tie';
-
-                    const scoreMessage = `The game between ${homeTeam} and ${awayTeam} is currently: ${homeScore} - ${awayScore}. ${winner} is winning.`;
-                    displayMessage(scoreMessage, 'groq-response');
-                    speakText(scoreMessage); // Speak the score and winner using TTS
-                } else {
-                    const noGameMessage = `No game is currently being played between ${team1} and ${team2}.`;
-                    displayMessage(noGameMessage, 'groq-response');
-                    speakText(noGameMessage); // Speak the no-game message using TTS
-                }
+                // Display the upcoming schedule
+                const scheduleMessage = `Upcoming Sports Events:\n${upcomingSchedule}`;
+                displayMessage(scheduleMessage, 'groq-response');
+                speakText(scheduleMessage); // Speak the upcoming sports schedule using TTS
+            } else {
+                const errorMessage = 'No upcoming sports events found.';
+                displayMessage(errorMessage, 'groq-response');
+                speakText(errorMessage); // Speak the error message using TTS
             }
         } else {
-            const errorMessage = 'Please specify two teams to check the score (e.g., "Who is winning the football game, Buffalo or Denver?")';
-            displayMessage(errorMessage, 'groq-response');
-            speakText(errorMessage); // Speak the error message using TTS
+            // Extract team names from the command if it includes "who is winning"
+            const teamsRegex = /([A-Za-z\s]+)\s+or\s+([A-Za-z\s]+)/i;
+            const match = command.match(teamsRegex);
+
+            if (match) {
+                const team1 = match[1].trim();
+                const team2 = match[2].trim();
+
+                // Fetch live scores for football (or another sport)
+                const liveScoresResponse = await fetch(`https://api.sportradar.us/football/trial/v4/en/schedules.json?api_key=${API_KEY}`);
+                const liveScoresData = await liveScoresResponse.json();
+
+                if (liveScoresData && liveScoresData.sport_events) {
+                    const game = liveScoresData.sport_events.find(event => {
+                        const homeTeam = event.home_team.name.toLowerCase();
+                        const awayTeam = event.away_team.name.toLowerCase();
+                        return (homeTeam.includes(team1.toLowerCase()) && awayTeam.includes(team2.toLowerCase())) || 
+                               (homeTeam.includes(team2.toLowerCase()) && awayTeam.includes(team1.toLowerCase()));
+                    });
+
+                    if (game) {
+                        const homeTeam = game.home_team.name;
+                        const awayTeam = game.away_team.name;
+                        const homeScore = game.home_team_score;
+                        const awayScore = game.away_team_score;
+                        const winner = homeScore > awayScore ? homeTeam : awayScore > homeScore ? awayTeam : 'It\'s a tie';
+
+                        const scoreMessage = `The game between ${homeTeam} and ${awayTeam} is currently: ${homeScore} - ${awayScore}. ${winner} is winning.`;
+                        displayMessage(scoreMessage, 'groq-response');
+                        speakText(scoreMessage); // Speak the score and winner using TTS
+                    } else {
+                        const noGameMessage = `No game is currently being played between ${team1} and ${team2}.`;
+                        displayMessage(noGameMessage, 'groq-response');
+                        speakText(noGameMessage); // Speak the no-game message using TTS
+                    }
+                }
+            } else {
+                const errorMessage = 'Please specify two teams to check the score (e.g., "Who is winning the football game, Buffalo or Denver?")';
+                displayMessage(errorMessage, 'groq-response');
+                speakText(errorMessage); // Speak the error message using TTS
+            }
         }
     } catch (error) {
         console.error('Error fetching sports data:', error);
