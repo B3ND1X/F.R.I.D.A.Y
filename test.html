@@ -529,13 +529,18 @@ async function getWeather() {
         const description = weatherData.current.condition.text; // Weather description
         const city = weatherData.location.name; // City name
 
-        // Step 4: Display the weather
-        displayMessage(`Current weather in ${city}: ${temperature}°C, ${description}.`, 'groq-response');
+        // Step 4: Display the weather and speak it
+        const weatherMessage = `Current weather in ${city}: ${temperature}°C, ${description}.`;
+        displayMessage(weatherMessage, 'groq-response'); // Display weather message on the screen
+        speakText(weatherMessage); // Speak the weather details using TTS
     } catch (error) {
         console.error('Weather error:', error);
-        displayMessage('Error occurred while fetching the weather.', 'groq-response');
+        const errorMessage = 'Error occurred while fetching the weather.';
+        displayMessage(errorMessage, 'groq-response'); // Display error message on the screen
+        speakText(errorMessage); // Speak the error message using TTS
     }
 }
+
         
 // Set timer
 function setTimer(command) {
