@@ -118,44 +118,40 @@
             transition: transform 0.1s ease-out;
             z-index: -1;
         }
-                    #youtube-player-container {
-    position: fixed;
-    bottom: 0; /* Place it at the bottom of the screen */
-    left: 50%;
-    transform: translateX(-50%);
-    display: none; /* Hidden by default */
-    width: 100%; /* Or any specific width you desire */
-    max-width: 600px; /* Limit the width for better appearance */
-    height: 170px;
-    background: #000;
-    border-radius: 8px;
-    overflow: hidden;
-    z-index: 9999; /* Ensure it's on top of other elements */
-}
-        #youtube-player-container iframe {
-            width: 100%;
-            height: 100%;
-        }
-        #controls {
-            position: fixed;
-            bottom: 10px;
-            left: 50%;
-            transform: translateX(-50%);
-            display: flex;
-            gap: 10px;
-            align-items: center;
-        }
-        .control-button {
-            padding: 8px 12px;
-            cursor: pointer;
-            background: #007BFF;
-            color: #FFF;
-            border: none;
-            border-radius: 4px;
-        }
-        .hidden {
-            display: none;
-        }
+                    /* CSS for PiP container */
+    #pip-container {
+        position: fixed;
+        top: 20px; /* Initially placed near the top */
+        right: 20px; /* Initially placed near the right */
+        width: 320px;
+        height: 180px;
+        background-color: black;
+        border-radius: 8px;
+        z-index: 9999; /* Ensure it's on top of everything else */
+        display: none; /* Hidden initially */
+        overflow: hidden;
+    }
+
+    #pip-container iframe {
+        width: 100%;
+        height: 100%;
+    }
+
+    #pip-container .close-btn {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background-color: rgba(255, 0, 0, 0.7);
+        color: white;
+        padding: 5px 10px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+
+    #pip-container .close-btn:hover {
+        background-color: rgba(255, 0, 0, 1);
+    }
         
     </style>
 </head>
@@ -181,17 +177,11 @@
 
     <div id="orb"></div> <!-- Orb in the background -->
     
-      <div id="assistant">
-        <div id="youtube-player-container">
-            <div id="youtube-player"></div>
-        </div>
-        <div id="controls">
-            <button id="play" class="control-button">Play</button>
-            <button id="pause" class="control-button">Pause</button>
-            <button id="mute" class="control-button">Mute</button>
-            <button id="unmute" class="control-button">Unmute</button>
-            <input id="volume" type="range" min="0" max="100" value="50">
-            <button id="toggle-video" class="control-button">Show Video</button>
+      <div id="pip-container">
+    <button class="close-btn" id="close-pip">Close</button>
+    <iframe id="pip-player" src="" frameborder="0" allow="autoplay; encrypted-media"></iframe>
+</div>
+
     <script>
         const apiKey = "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"; // Groq API key
         const weatherApiKey = '80445369031848dbad520436251201'; // Weather API key
@@ -658,7 +648,8 @@ function setTimer(command) {
             }
         }
 
-             let player;
+             
+let player;
 let currentVideoId = "";
 
 // Load YouTube Iframe API
@@ -676,22 +667,13 @@ function onPlayerReady(event) {
     console.log("YouTube Player is ready.");
 }
 
-// Display message in the chat box
-function displayMessage(message, className) {
-    const messageElement = document.createElement('div');
-    messageElement.classList.add('message', className);
-    messageElement.textContent = message;
-    chatBox.appendChild(messageElement);
-    chatBox.scrollTop = chatBox.scrollHeight;
-}
-
 // Play a song based on voice command
 function playMusic(command) {
     const query = command.replace("play", "").trim();
     if (query) {
         searchYouTube(query);
     } else {
-        displayMessage("Please specify a song or artist to play.", 'groq-response');
+        displayMessage("Please specify a song or artist to play.");
     }
 }
 
@@ -707,59 +689,35 @@ function searchYouTube(query) {
                 currentVideoId = videoId;
                 loadYouTubeVideo(videoId);
             } else {
-                displayMessage("No results found for your query.", 'groq-response');
+                displayMessage("No results found for your query.");
             }
         })
         .catch(error => {
             console.error("Error searching YouTube:", error);
-            displayMessage("Error searching for the song.", 'groq-response');
+            displayMessage("Error searching for the song.");
         });
 }
 
-// Load the video in the YouTube player
+// Load video in Picture-in-Picture (PiP)
 function loadYouTubeVideo(videoId) {
-    player.loadVideoById(videoId);
-    player.playVideo();
-    document.getElementById('youtube-player-container').style.display = "block";
+    // Show PiP container and load video
+    document.getElementById('pip-container').style.display = "block";
+    const pipPlayer = document.getElementById('pip-player');
+    pipPlayer.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+
+    // Optionally, allow closing the PiP window
+    document.getElementById('close-pip').addEventListener('click', () => {
+        document.getElementById('pip-container').style.display = "none";
+    });
 }
 
-// Play/Pause/Volume/Mute controls
-function pauseYouTubeVideo() {
-    if (player && player.pauseVideo) {
-        player.pauseVideo();
-        displayMessage("Playback paused.", 'groq-response');
-    }
+// Utility function to display messages
+function displayMessage(message) {
+    const messagesDiv = document.getElementById('messages');
+    messagesDiv.textContent = message;
 }
 
-function playYouTubeVideo() {
-    if (player && player.playVideo) {
-        player.playVideo();
-        displayMessage("Playback resumed.", 'groq-response');
-    }
-}
-
-function muteYouTubeVideo() {
-    if (player && player.mute) {
-        player.mute();
-        displayMessage("Muted.", 'groq-response');
-    }
-}
-
-function unmuteYouTubeVideo() {
-    if (player && player.unMute) {
-        player.unMute();
-        displayMessage("Unmuted.", 'groq-response');
-    }
-}
-
-function setYouTubeVolume(level) {
-    if (player && player.setVolume) {
-        player.setVolume(level);
-        displayMessage(`Volume set to ${level}%.`, 'groq-response');
-    }
-}
-
-// Event listeners for controls
+// Event listeners for controls (no more buttons, as PiP is now being used)
 document.getElementById('play').addEventListener('click', playYouTubeVideo);
 document.getElementById('pause').addEventListener('click', pauseYouTubeVideo);
 document.getElementById('mute').addEventListener('click', muteYouTubeVideo);
