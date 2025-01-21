@@ -1,8 +1,27 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
+    <script src="chrome-extension://mooikfkahbdckldjjndioackbalphokd/assets/prompt.js"></script>
+    <style type="text/css">
+        .fc-ab-root { display: none !important } 
+        body > div.fc-ab-root { display: none !important } 
+        .fbs-auth__container.fbs-auth__adblock { display: none !important } 
+        .overlay-34_Kj { display: none !important } 
+        .wrapper-3AzfF { display: none !important } 
+        .fEy1Z2XT { display: none !important } 
+        .nytc---modal-window---windowContainer.nytc---modal-window---isShown.nytc---shared---blackBG { display: none !important } 
+        .tp-modal { display: none !important } 
+        .tp-backdrop.tp-active { display: none !important } 
+        .c-nudge__container.c-gate__container { display: none !important } 
+        .c-nudge__container.c-regGate__container { display: none !important } 
+        .css-n7r8pg { display: none !important } 
+        .css-1bd8bfl { display: none !important } 
+        .overlay__59af11e2 { display: none !important } 
+        .tp_modal { display: none !important } 
+        .tp-backdrop.tp-active { display: none !important } 
+        div[class^='sp_message_container'] { display: none !important } 
+        div[class^='sp_veil'] { display: none !important } 
+    </style>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>F.R.I.D.AY Functional Responsive Intelligent Assistant for You</title>
     <style>
         /* CSS styles unchanged */
@@ -98,12 +117,20 @@
             transition: transform 0.1s ease-out;
             z-index: -1;
         }
+        #player {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+}
+        
     </style>
 </head>
 <body>
+
     <div id="chat-box-container">
         <div id="chat-box"></div>
-        <input type="text" id="user-input" placeholder="Type your message..." />
+        <input type="text" id="user-input" placeholder="Type your message...">
         <button id="send-btn">Send</button>
     </div>
 
@@ -120,11 +147,16 @@
     </div>
 
     <div id="orb"></div> <!-- Orb in the background -->
-
+     <div id="player">
+        <iframe src="https://open.spotify.com/" width="300" height="80" frameborder="0" allowtransparency="true" allow="encrypted-media"></iframe>
+    </div>
     <script>
         const apiKey = "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"; // Groq API key
         const weatherApiKey = '80445369031848dbad520436251201'; // Weather API key
         const guardianApiKey = '962cca3b-893a-4285-969b-51e44bf81615'; // The Guardian API key
+        const tmdbApiKey = '12b781071b2feaf56c0197cdc318e017'; // TMDB API key for movie suggestions
+        const spotifyClientId = '6dcbbbc7611649c08f1af837d8725674'; // Spotify Client ID
+        const spotifyClientSecret = '331d4f6cdcc14555b7d81a5041774992'; // Spotify Client Secret
         const wakeWord = "hey friday";
 
         let recognition;
@@ -139,6 +171,9 @@
         let inactivityTimeout;
         const INACTIVITY_TIMEOUT = 30000; // 30 seconds inactivity timeout
         let recognizing = false; // Flag to track recognition state
+
+        let timer;
+        let alarmTimeout;
 
         // Web Audio API setup for capturing sound
         let audioContext, analyser, microphoneStream;
@@ -205,15 +240,15 @@
             }
 
             recognition = new webkitSpeechRecognition();
-            recognition.continuous = true;  // Continuous listening
-            recognition.interimResults = false; // Do not return partial results
+            recognition.continuous = true;
+            recognition.interimResults = false;
             recognition.lang = "en-US";
             recognition.maxAlternatives = 1;
 
             recognition.onstart = () => {
                 console.log("Speech recognition started.");
-                recognizing = true; // Set recognizing flag
-                resetInactivityTimer(); // Reset inactivity timer when speech starts
+                recognizing = true;
+                resetInactivityTimer();
             };
 
             recognition.onresult = (event) => {
@@ -224,56 +259,34 @@
                 transcript = transcript.trim().toLowerCase();
                 console.log("Transcript:", transcript);
 
-                // Detect wake word and command
                 if (transcript.includes(wakeWord) && !isListeningForCommand) {
                     console.log("Wake word detected!");
-                    playWakeWordSound(); // Play activation sound
+                    playWakeWordSound();
                     isListeningForCommand = true;
                     displayMessage("Listening for your command...", 'groq-response');
                     commandBuffer = '';
-                    return; // Do not process yet, continue listening
+                    return;
                 }
 
                 if (isListeningForCommand && transcript && transcript !== wakeWord) {
                     if (transcript.length < 3) {
-                        return; // Avoid sending incomplete or very short prompts
+                        return;
                     }
-
-                    commandBuffer = transcript;
-                    console.log("Captured command:", commandBuffer);
-
-                    // Check for 'what time is it' command
-                    if (commandBuffer.includes('what time is it')) {
-                        const currentTime = new Date().toLocaleTimeString();
-                        const message = `The current time is ${currentTime}.`;
-                        displayMessage(message, 'groq-response');
-                        speakText(message); // Speak the time out loud
-                    } else {
-                        displayMessage("Processing your request...", 'groq-response');
-                        sendToGroq(commandBuffer); // Send other commands to Groq
-                    }
-
-                    commandBuffer = ''; // Reset buffer after processing
-                    isListeningForCommand = false; // End listening for command
+                    processCommand(transcript);
+                    isListeningForCommand = false;
                 }
+            };
 
-                resetInactivityTimer(); // Reset inactivity timer after receiving speech
+            recognition.onend = () => {
+                console.log("Speech recognition ended.");
+                recognizing = false;
+                restartSpeechRecognition(); // Restart recognition when it ends
             };
 
             recognition.onerror = (event) => {
                 console.error("Speech recognition error:", event.error);
                 restartSpeechRecognition(); // Restart recognition on error
             };
-
-            recognition.onend = () => {
-                console.log("Speech recognition ended.");
-                recognizing = false; // Reset recognizing flag
-                restartSpeechRecognition(); // Restart recognition when it ends
-            };
-
-            if (!recognizing) { // Only start recognition if it's not already running
-                recognition.start();
-            }
         }
 
         // Function to restart speech recognition
@@ -349,16 +362,16 @@
             }
         }
 
-               // Weather Fetch with Location
+        // Weather Fetch with Location
         function fetchWeather() {
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition((position) => {
                     const latitude = position.coords.latitude;
                     const longitude = position.coords.longitude;
-        
+
                     // Fetch weather using the latitude and longitude
                     const weatherUrl = `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${latitude},${longitude}&aqi=no`;
-        
+
                     fetch(weatherUrl)
                         .then(response => response.json())
                         .then(data => {
@@ -435,19 +448,200 @@
             console.log("Assistant's TTS, SST, weather, and news have been refreshed.");
         }
 
-        // Setup and initialize the assistant when the page loads
-        window.onload = function () {
-            fetchWeather();
-            fetchNews();
-            requestMicrophoneAccess().then(() => {
-                initializeSpeechRecognition(); // Initialize speech recognition after microphone access is granted
-            }).catch((error) => {
-                console.error(error);
-                alert("Assistant cannot run without microphone access.");
-            });
+            // Setup and initialize the assistant when the page loads
+            window.onload = function () {
+                fetchWeather();
+                fetchNews();
+                requestMicrophoneAccess().then(() => {
+                    initializeSpeechRecognition(); // Initialize speech recognition after microphone access is granted
+                    try {
+                        recognition.start(); // Start speech recognition
+                    } catch (error) {
+                        console.error("Error starting speech recognition:", error);
+                    }
+                }).catch((error) => {
+                    console.error(error);
+                    alert("Assistant cannot run without microphone access.");
+                });
+            
+                sendButton.addEventListener('click', handleUserInput);
+            };
 
-            sendButton.addEventListener('click', handleUserInput);
+                   // Process the command
+function processCommand(command) {
+    if (command.includes("search")) {
+        let query = command.replace("search", "").trim();
+        searchWeb(query);
+    } else if (command.includes("weather")) {
+        getWeather();
+    } else if (command.includes("play")) {
+        playMusic(command);
+    } else if (command.includes("news")) {
+        getNews();
+    } else if (command.includes("time")) {
+        getTime();
+    } else if (command.includes("set a timer")) {
+        setTimer(command);
+    } else if (command.includes("set an alarm")) {
+        setAlarm(command);
+    } else if (
+        command.includes("new movies") || 
+        command.includes("latest movies") || 
+        command.includes("recent movies") || 
+        command.includes("top movies")
+    ) {
+        getMovies();  // Fetch movies for any flexible movie-related command
+    } else {
+        sendToGroq(command); // Send the command to Groq by default
+    }
+}
+
+
+
+
+
+// Get weather
+async function getWeather() {
+    try {
+        // Step 1: Get user's location using the Geolocation API
+        const getLocation = () => {
+            return new Promise((resolve, reject) => {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(resolve, reject);
+                } else {
+                    reject(new Error('Geolocation not supported.'));
+                }
+            });
         };
+
+        const position = await getLocation();
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+
+        // Step 2: Fetch weather data using the coordinates
+        const weatherResponse = await fetch(
+            `https://api.weatherapi.com/v1/current.json?key=${weatherApiKey}&q=${latitude},${longitude}&aqi=no`
+        );
+        const weatherData = await weatherResponse.json();
+
+        // Step 3: Extract weather details
+        const temperature = weatherData.current.temp_c; // Temperature in Celsius
+        const description = weatherData.current.condition.text; // Weather description
+        const city = weatherData.location.name; // City name
+
+        // Step 4: Display the weather and speak it
+        const weatherMessage = `Current weather in ${city}: ${temperature}°C, ${description}.`;
+        displayMessage(weatherMessage, 'groq-response'); // Display weather message on the screen
+        speakText(weatherMessage); // Speak the weather details using TTS
+    } catch (error) {
+        console.error('Weather error:', error);
+        const errorMessage = 'Error occurred while fetching the weather.';
+        displayMessage(errorMessage, 'groq-response'); // Display error message on the screen
+        speakText(errorMessage); // Speak the error message using TTS
+    }
+}
+
+        
+// Set timer
+function setTimer(command) {
+    let minutes = command.match(/\d+/); // Extract number
+    if (minutes) {
+        let timerMinutes = parseInt(minutes[0]);
+        displayMessage(`Setting a timer for ${timerMinutes} minutes.`, 'groq-response');
+        timer = setTimeout(() => {
+            displayMessage("Timer ended! Time's up!", 'groq-response');
+            alert("Time's up!");
+        }, timerMinutes * 60000); // Convert to milliseconds
+    } else {
+        displayMessage("Please specify the number of minutes for the timer.", 'groq-response');
+    }
+}
+
+        // Set alarm functionality
+        function setAlarm(command) {
+            let time = command.match(/\d{1,2}:\d{2}/); // Extract time in hh:mm format
+            if (time) {
+                let alarmTime = time[0];
+                let [hour, minute] = alarmTime.split(":").map(num => parseInt(num));
+                let now = new Date();
+                let alarmDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hour, minute, 0, 0);
+                let timeUntilAlarm = alarmDate - now;
+
+                if (timeUntilAlarm < 0) {
+                    alarmDate.setDate(alarmDate.getDate() + 1); // If the time is in the past, set it for the next day
+                    timeUntilAlarm = alarmDate - now;
+                }
+
+                displayMessage(`Alarm set for ${alarmTime}.`, 'groq-response');
+                alarmTimeout = setTimeout(() => {
+                    displayMessage("Alarm ringing! Wake up!", 'groq-response');
+                    alert("Alarm ringing! Wake up!");
+                }, timeUntilAlarm);
+            } else {
+                displayMessage("Please specify a valid time for the alarm (in hh:mm format).", 'groq-response');
+            }
+        }
+
+               // Fetch movie recommendations from TMDB
+        async function getMovies() {
+            try {
+                const response = await fetch(`https://api.themoviedb.org/3/discover/movie?api_key=${tmdbApiKey}&sort_by=popularity.desc`);
+                const data = await response.json();
+                const movies = data.results.slice(0, 3);  // Get the top 3 movies
+                let movieList = movies.map(movie => movie.title).join('<br>');  // Only show the titles
+                displayMessage(`Here are the top movies:<br>${movieList}`, 'groq-response');
+            } catch (error) {
+                console.error('Movie error:', error);
+                displayMessage('Error occurred while fetching movies.', 'groq-response');
+            }
+        }
+
+              // Play music via Spotify using iframe
+        async function playMusic(command) {
+            const song = command.replace("play", "").trim();
+        
+            if (song) {
+                // Display message to the user about the song being played
+                displayMessage(`Playing song: ${song}`, 'groq-response');
+        
+                // Replace spaces with '+' to create a search query for Spotify
+                const searchQuery = song.split(" ").join("+");
+        
+                // Construct the Spotify URL for the search query
+                const spotifySearchUrl = `https://open.spotify.com/search/${searchQuery}`;
+        
+                // For now, use a hardcoded URL for a specific song. Replace with a dynamic URL logic if needed.
+                const specificSongUrl = `https://open.spotify.com/embed/track/0VjIjW4GlUZAMYd6sSx4Y5`;  // Example URL, replace with a dynamic track URL if needed
+                
+                // Get the iframe element inside the #player div
+                const iframe = document.querySelector("#player iframe");
+        
+                // Update the iframe's src to play the requested song
+                iframe.src = specificSongUrl;
+        
+            } else {
+                // If no song was specified, prompt the user
+                displayMessage("Please specify a song to play.", 'groq-response');
+            }
+        }
+
+        // Get current time
+        function getTime() {
+            const currentTime = new Date().toLocaleTimeString();
+            displayMessage(`The current time is: ${currentTime}`, 'groq-response');
+        }
+
+        // Search the web
+        function searchWeb(query) {
+            const url = `https://www.google.com/search?q=${query}`;
+            window.open(url, '_blank');
+        }
+
+        // Get news
+        function getNews() {
+            const url = `https://news.google.com`;
+            window.open(url, '_blank');
+        }
     </script>
 </body>
 </html>
