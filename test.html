@@ -461,32 +461,33 @@
 
                    // Process the command
 function processCommand(command) {
-    if (command.includes("search")) {
+    if (command.includes("set a timer")) {
+        setTimer(command); // Prioritize setting a timer
+    } else if (command.includes("set an alarm")) {
+        setAlarm(command);
+    } else if (command.includes("play")) {
+        playMusic(command);
+    } else if (command.includes("search")) {
         let query = command.replace("search", "").trim();
         searchWeb(query);
     } else if (command.includes("weather")) {
         getWeather();
-    } else if (command.includes("play")) {
-        playMusic(command);
     } else if (command.includes("news")) {
         getNews();
     } else if (command.includes("time")) {
-        getTime();
-    } else if (command.includes("set a timer")) {
-        setTimer(command);
-    } else if (command.includes("set an alarm")) {
-        setAlarm(command);
+        getTime(); // Only check for time if no other "time-related" commands exist
     } else if (
         command.includes("new movies") || 
         command.includes("latest movies") || 
         command.includes("recent movies") || 
         command.includes("top movies")
     ) {
-        getMovies();  // Fetch movies for any flexible movie-related command
+        getMovies();
     } else {
-        sendToGroq(command); // Send the command to Groq by default
+        sendToGroq(command); // Send to Groq if no matches
     }
 }
+
 
 
 
