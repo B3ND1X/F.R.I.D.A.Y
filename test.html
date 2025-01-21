@@ -536,7 +536,7 @@ async function getWeather() {
 
         
 // Set timer
-function setTimer(command) {
+async function setTimer(command) {
     // Regular expression to match hours, minutes, and seconds in the command
     const timeRegex = /(\d+)\s*(hours?|minutes?|seconds?)/gi;
 
@@ -564,15 +564,21 @@ function setTimer(command) {
     if (totalDurationMs > 0) {
         // Display the parsed duration components
         const timeString = timeComponents.join(", ");
-        displayMessage(`Setting a timer for ${timeString}.`, 'groq-response');
+        const message = `Setting a timer for ${timeString}.`;
+        displayMessage(message, 'groq-response');
+        speakText(message); // Speak the timer message using TTS
 
         // Set the timer
         timer = setTimeout(() => {
-            displayMessage("Timer ended! Time's up!", 'groq-response');
-            alert("Time's up!");
+            const endMessage = "Timer ended! Time's up!";
+            displayMessage(endMessage, 'groq-response');
+            speakText(endMessage); // Speak the end timer message using TTS
+            alert(endMessage);
         }, totalDurationMs);
     } else {
-        displayMessage("Please specify the timer duration in hours, minutes, or seconds.", 'groq-response');
+        const errorMessage = "Please specify the timer duration in hours, minutes, or seconds.";
+        displayMessage(errorMessage, 'groq-response');
+        speakText(errorMessage); // Speak the error message using TTS
     }
 }
 
