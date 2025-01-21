@@ -166,7 +166,7 @@
         <input type="text" id="user-input" placeholder="Type your message...">
         <button id="send-btn">Send</button>
     </div>
-
+    
     <div id="news-weather-container">
         <div class="card">
             <h2>Local Weather</h2>
@@ -659,112 +659,114 @@ function setTimer(command) {
         }
 
              let player;
-        let currentVideoId = "";
+let currentVideoId = "";
 
-        // Load YouTube Iframe API
-        function onYouTubeIframeAPIReady() {
-            player = new YT.Player('youtube-player', {
-                height: '390',
-                width: '640',
-                events: {
-                    onReady: onPlayerReady,
-                }
-            });
+// Load YouTube Iframe API
+function onYouTubeIframeAPIReady() {
+    player = new YT.Player('youtube-player', {
+        height: '390',
+        width: '640',
+        events: {
+            onReady: onPlayerReady,
         }
+    });
+}
 
-        function onPlayerReady(event) {
-            console.log("YouTube Player is ready.");
-        }
+function onPlayerReady(event) {
+    console.log("YouTube Player is ready.");
+}
 
-        // Play a song based on voice command
-        function playMusic(command) {
-            const query = command.replace("play", "").trim();
-            if (query) {
-                searchYouTube(query);
+// Display message in the chat box
+function displayMessage(message, className) {
+    const messageElement = document.createElement('div');
+    messageElement.classList.add('message', className);
+    messageElement.textContent = message;
+    chatBox.appendChild(messageElement);
+    chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+// Play a song based on voice command
+function playMusic(command) {
+    const query = command.replace("play", "").trim();
+    if (query) {
+        searchYouTube(query);
+    } else {
+        displayMessage("Please specify a song or artist to play.", 'groq-response');
+    }
+}
+
+// Search YouTube and load the video
+function searchYouTube(query) {
+    const apiKey = "YOUR_YOUTUBE_API_KEY";
+    const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(query)}&key=${apiKey}`;
+    fetch(url)
+        .then(response => response.json())
+        .then(data => {
+            if (data.items && data.items.length > 0) {
+                const videoId = data.items[0].id.videoId;
+                currentVideoId = videoId;
+                loadYouTubeVideo(videoId);
             } else {
-                displayMessage("Please specify a song or artist to play.");
+                displayMessage("No results found for your query.", 'groq-response');
             }
-        }
-
-        // Search YouTube and load the video
-        function searchYouTube(query) {
-            const apiKey = "YOUR_YOUTUBE_API_KEY";
-            const url = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&q=${encodeURIComponent(query)}&key=${apiKey}`;
-            fetch(url)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.items && data.items.length > 0) {
-                        const videoId = data.items[0].id.videoId;
-                        currentVideoId = videoId;
-                        loadYouTubeVideo(videoId);
-                    } else {
-                        displayMessage("No results found for your query.");
-                    }
-                })
-                .catch(error => {
-                    console.error("Error searching YouTube:", error);
-                    displayMessage("Error searching for the song.");
-                });
-        }
-
-        // Load video in YouTube player
-        function loadYouTubeVideo(videoId) {
-            player.loadVideoById(videoId);
-            player.playVideo();
-            document.getElementById('youtube-player-container').style.display = "block";
-        }
-
-        // Voice command handlers
-        function pauseYouTubeVideo() {
-            if (player && player.pauseVideo) {
-                player.pauseVideo();
-                displayMessage("Playback paused.");
-            }
-        }
-
-        function playYouTubeVideo() {
-            if (player && player.playVideo) {
-                player.playVideo();
-                displayMessage("Playback resumed.");
-            }
-        }
-
-        function muteYouTubeVideo() {
-            if (player && player.mute) {
-                player.mute();
-                displayMessage("Muted.");
-            }
-        }
-
-        function unmuteYouTubeVideo() {
-            if (player && player.unMute) {
-                player.unMute();
-                displayMessage("Unmuted.");
-            }
-        }
-
-        function setYouTubeVolume(level) {
-            if (player && player.setVolume) {
-                player.setVolume(level);
-                displayMessage(`Volume set to ${level}%.`);
-            }
-        }
-
-        // Utility function to display messages
-        function displayMessage(message) {
-            const messagesDiv = document.getElementById('messages');
-            messagesDiv.textContent = message;
-        }
-
-        // Event listeners for controls
-        document.getElementById('play').addEventListener('click', playYouTubeVideo);
-        document.getElementById('pause').addEventListener('click', pauseYouTubeVideo);
-        document.getElementById('mute').addEventListener('click', muteYouTubeVideo);
-        document.getElementById('unmute').addEventListener('click', unmuteYouTubeVideo);
-        document.getElementById('volume').addEventListener('input', (e) => {
-            setYouTubeVolume(e.target.value);
+        })
+        .catch(error => {
+            console.error("Error searching YouTube:", error);
+            displayMessage("Error searching for the song.", 'groq-response');
         });
+}
 
+// Load the video in the YouTube player
+function loadYouTubeVideo(videoId) {
+    player.loadVideoById(videoId);
+    player.playVideo();
+    document.getElementById('youtube-player-container').style.display = "block";
+}
+
+// Play/Pause/Volume/Mute controls
+function pauseYouTubeVideo() {
+    if (player && player.pauseVideo) {
+        player.pauseVideo();
+        displayMessage("Playback paused.", 'groq-response');
+    }
+}
+
+function playYouTubeVideo() {
+    if (player && player.playVideo) {
+        player.playVideo();
+        displayMessage("Playback resumed.", 'groq-response');
+    }
+}
+
+function muteYouTubeVideo() {
+    if (player && player.mute) {
+        player.mute();
+        displayMessage("Muted.", 'groq-response');
+    }
+}
+
+function unmuteYouTubeVideo() {
+    if (player && player.unMute) {
+        player.unMute();
+        displayMessage("Unmuted.", 'groq-response');
+    }
+}
+
+function setYouTubeVolume(level) {
+    if (player && player.setVolume) {
+        player.setVolume(level);
+        displayMessage(`Volume set to ${level}%.`, 'groq-response');
+    }
+}
+
+// Event listeners for controls
+document.getElementById('play').addEventListener('click', playYouTubeVideo);
+document.getElementById('pause').addEventListener('click', pauseYouTubeVideo);
+document.getElementById('mute').addEventListener('click', muteYouTubeVideo);
+document.getElementById('unmute').addEventListener('click', unmuteYouTubeVideo);
+document.getElementById('volume').addEventListener('input', (e) => {
+    setYouTubeVolume(e.target.value);
+});
 
 
         // Get current time
