@@ -1,5 +1,6 @@
 <html lang="en">
 <head>
+    <script src="chrome-extension://mooikfkahbdckldjjndioackbalphokd/assets/prompt.js"></script>
     <style type="text/css">
         .fc-ab-root { display: none !important } 
         body > div.fc-ab-root { display: none !important } 
@@ -116,6 +117,7 @@
             transition: transform 0.1s ease-out;
             z-index: -1;
         }
+
         
     </style>
 </head>
@@ -140,12 +142,6 @@
     </div>
 
     <div id="orb"></div> <!-- Orb in the background -->
-  <div id="pip-container" class="pip-container">
-    <div id="pip-box" class="pip-box">
-        <button id="close-pip" class="close-btn">X</button>
-        <iframe id="pip-iframe" width="300" height="200" frameborder="0" allow="autoplay; encrypted-media" allowfullscreen></iframe>
-    </div>
-</div>
     <script>
         const apiKey = "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"; // Groq API key
         const weatherApiKey = '80445369031848dbad520436251201'; // Weather API key
@@ -463,7 +459,7 @@
                 sendButton.addEventListener('click', handleUserInput);
             };
 
-                  // Process the command
+                   // Process the command
 function processCommand(command) {
     if (command.includes("search")) {
         let query = command.replace("search", "").trim();
@@ -471,28 +467,7 @@ function processCommand(command) {
     } else if (command.includes("weather")) {
         getWeather();
     } else if (command.includes("play")) {
-        playMusic(command); // Updated for YouTube music playback
-    } else if (command.includes("pause")) {
-        pauseYouTubeVideo(); // Pauses the YouTube video
-    } else if (command.includes("resume") || command.includes("play video")) {
-        playYouTubeVideo(); // Resumes the YouTube video
-    } else if (command.includes("skip")) {
-        skipToNextSong(); // Skips to the next song
-    } else if (command.includes("mute")) {
-        muteYouTubeVideo(); // Mutes the video
-    } else if (command.includes("unmute")) {
-        unmuteYouTubeVideo(); // Unmutes the video
-    } else if (command.includes("volume")) {
-        let volume = command.match(/\d+/); // Extract volume percentage
-        if (volume) {
-            setYouTubeVolume(parseInt(volume[0])); // Set volume level
-        } else {
-            displayMessage("Please specify a volume level.", "groq-response");
-        }
-    } else if (command.includes("show video")) {
-        togglePiPBox(true); // Shows the PiP video player
-    } else if (command.includes("hide video")) {
-        togglePiPBox(false); // Hides the PiP video player
+        playMusic(command);
     } else if (command.includes("news")) {
         getNews();
     } else if (command.includes("time")) {
@@ -507,80 +482,11 @@ function processCommand(command) {
         command.includes("recent movies") || 
         command.includes("top movies")
     ) {
-        getMovies(); // Fetch movies for any flexible movie-related command
+        getMovies();  // Fetch movies for any flexible movie-related command
     } else {
         sendToGroq(command); // Send the command to Groq by default
     }
 }
-
-// Play music and display in a PiP box
-async function playMusic(command) {
-    const song = command.replace("play", "").trim();
-
-    if (song) {
-        // Display message to the user about the song being played
-        displayMessage(`Playing song: ${song}`, 'groq-response');
-
-        // Replace spaces with '+' to create a search query for YouTube
-        const searchQuery = song.split(" ").join("+");
-
-        // Construct the YouTube search URL for the query
-        const youtubeSearchUrl = `https://www.youtube.com/embed?listType=search&list=${searchQuery}`;
-
-        // Get the iframe element inside the PiP box
-        const iframe = document.querySelector("#pip-iframe");
-
-        // Set the iframe src to the YouTube embed URL
-        iframe.src = youtubeSearchUrl;
-
-        // Show the PiP box
-        togglePiPBox(true);
-    } else {
-        // If no song was specified, prompt the user
-        displayMessage("Please specify a song to play.", 'groq-response');
-    }
-}
-
-// Toggle PiP video visibility
-function togglePiPBox(show) {
-    const pipContainer = document.querySelector("#pip-container");
-    pipContainer.style.display = show ? 'block' : 'none';
-}
-
-// Draggable functionality for the PiP box
-let pipBox = document.getElementById("pip-box");
-
-pipBox.onmousedown = function(event) {
-    let shiftX = event.clientX - pipBox.getBoundingClientRect().left;
-    let shiftY = event.clientY - pipBox.getBoundingClientRect().top;
-
-    function moveAt(pageX, pageY) {
-        pipBox.style.left = pageX - shiftX + 'px';
-        pipBox.style.top = pageY - shiftY + 'px';
-    }
-
-    moveAt(event.pageX, event.pageY);
-
-    function onMouseMove(event) {
-        moveAt(event.pageX, event.pageY);
-    }
-
-    document.addEventListener('mousemove', onMouseMove);
-
-    pipBox.onmouseup = function() {
-        document.removeEventListener('mousemove', onMouseMove);
-        pipBox.onmouseup = null;
-    };
-};
-
-pipBox.ondragstart = function() {
-    return false;
-};
-
-// Close PiP box (optional, could be part of speech commands as well)
-document.getElementById("close-pip").onclick = function() {
-    togglePiPBox(false);
-};
 
 
 
@@ -682,7 +588,49 @@ function setTimer(command) {
             }
         }
 
-              
+            async function playMusic(command) {
+    const songOrArtist = command.replace("play", "").trim();
+
+    if (songOrArtist) {
+        // Display message to the user about the song/artist being played
+        displayMessage(`Playing: ${songOrArtist}`, 'groq-response');
+
+        // Replace spaces with '+' to create a search query for YouTube
+        const searchQuery = songOrArtist.split(" ").join("+");
+
+        // YouTube Data API URL
+        const apiKey = 'AIzaSyC7WdLnBCeYn9AyjOtHCOfjD9alvGh9qO0'; // Replace with your YouTube API key
+        const apiUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&q=${searchQuery}&key=${apiKey}`;
+
+        try {
+            // Fetch the search results from the YouTube API
+            const response = await fetch(apiUrl);
+            const data = await response.json();
+
+            if (data.items && data.items.length > 0) {
+                // Get the ID of the first video result
+                const videoId = data.items[0].id.videoId;
+
+                // Construct the YouTube video URL with autoplay enabled
+                const videoUrl = `https://www.youtube.com/watch?v=${videoId}&autoplay=1`;
+
+                // Open the video in a new tab and start playing automatically
+                window.open(videoUrl, '_blank');
+            } else {
+                // If no video found, display a message
+                displayMessage("No videos found for that search.", 'groq-response');
+            }
+        } catch (error) {
+            // If there's an error with the API request
+            displayMessage("An error occurred while searching for the video.", 'groq-response');
+            console.error("Error fetching YouTube data:", error);
+        }
+    } else {
+        // If no song or artist was specified, prompt the user
+        displayMessage("Please specify a song or artist to play.", 'groq-response');
+    }
+}
+
 
         // Get current time
         function getTime() {
