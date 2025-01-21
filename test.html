@@ -117,10 +117,12 @@
             transition: transform 0.1s ease-out;
             z-index: -1;
         }
-         #player {
-            margin-top: auto; /* Push the iframe to the bottom */
-            background-color: #f4f4f4; /* Optional: You can change the background color */
-            padding: 10px;
+        #player {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+}
         
     </style>
 </head>
@@ -494,20 +496,7 @@ function processCommand(command) {
     }
 }
 
-// You can now call a generic TTS function at the end of each response.
-function displayMessage(message, className) {
-    // Insert message into the chatbox or log
-    const messageBox = document.createElement('div');
-    messageBox.className = className;
-    messageBox.innerHTML = message;
-    document.getElementById('chatbox').appendChild(messageBox);
-    
-    // TTS - Read out the message if TTS is available
-    if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(message);
-        speechSynthesis.speak(utterance);
-    }
-}
+
 
 
 
