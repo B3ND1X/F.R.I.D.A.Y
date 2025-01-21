@@ -1,28 +1,8 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <script src="chrome-extension://mooikfkahbdckldjjndioackbalphokd/assets/prompt.js"></script>
-    <script src="https://www.youtube.com/iframe_api"></script>
-    <style type="text/css">
-        .fc-ab-root { display: none !important } 
-        body > div.fc-ab-root { display: none !important } 
-        .fbs-auth__container.fbs-auth__adblock { display: none !important } 
-        .overlay-34_Kj { display: none !important } 
-        .wrapper-3AzfF { display: none !important } 
-        .fEy1Z2XT { display: none !important } 
-        .nytc---modal-window---windowContainer.nytc---modal-window---isShown.nytc---shared---blackBG { display: none !important } 
-        .tp-modal { display: none !important } 
-        .tp-backdrop.tp-active { display: none !important } 
-        .c-nudge__container.c-gate__container { display: none !important } 
-        .c-nudge__container.c-regGate__container { display: none !important } 
-        .css-n7r8pg { display: none !important } 
-        .css-1bd8bfl { display: none !important } 
-        .overlay__59af11e2 { display: none !important } 
-        .tp_modal { display: none !important } 
-        .tp-backdrop.tp-active { display: none !important } 
-        div[class^='sp_message_container'] { display: none !important } 
-        div[class^='sp_veil'] { display: none !important } 
-    </style>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>F.R.I.D.AY Functional Responsive Intelligent Assistant for You</title>
     <style>
         /* CSS styles unchanged */
@@ -118,7 +98,7 @@
             transition: transform 0.1s ease-out;
             z-index: -1;
         }
-                    /* CSS for PiP container */
+        /* CSS for PiP container */
     #pip-container {
         position: fixed;
         top: 20px; /* Initially placed near the top */
@@ -152,17 +132,15 @@
     #pip-container .close-btn:hover {
         background-color: rgba(255, 0, 0, 1);
     }
-        
     </style>
 </head>
 <body>
-
     <div id="chat-box-container">
         <div id="chat-box"></div>
-        <input type="text" id="user-input" placeholder="Type your message...">
+        <input type="text" id="user-input" placeholder="Type your message..." />
         <button id="send-btn">Send</button>
     </div>
-    
+
     <div id="news-weather-container">
         <div class="card">
             <h2>Local Weather</h2>
@@ -176,13 +154,11 @@
     </div>
 
     <div id="orb"></div> <!-- Orb in the background -->
-    
-      <div id="pip-container">
+     <div id="pip-container">
     <button class="close-btn" id="close-pip">Close</button>
     <iframe id="pip-player" src="" frameborder="0" allow="autoplay; encrypted-media"></iframe>
 </div>
-
-    <script>
+   <script>
         const apiKey = "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"; // Groq API key
         const weatherApiKey = '80445369031848dbad520436251201'; // Weather API key
         const guardianApiKey = '962cca3b-893a-4285-969b-51e44bf81615'; // The Guardian API key
