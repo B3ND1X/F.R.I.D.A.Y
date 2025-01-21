@@ -537,16 +537,42 @@ async function getWeather() {
         
 // Set timer
 function setTimer(command) {
-    let minutes = command.match(/\d+/); // Extract number
-    if (minutes) {
-        let timerMinutes = parseInt(minutes[0]);
-        displayMessage(`Setting a timer for ${timerMinutes} minutes.`, 'groq-response');
+    // Regular expression to match hours, minutes, and seconds in the command
+    const timeRegex = /(\d+)\s*(hours?|minutes?|seconds?)/gi;
+
+    let totalDurationMs = 0; // Total duration in milliseconds
+    let timeComponents = []; // To store matched time components for feedback
+
+    // Extract all time components from the command
+    let match;
+    while ((match = timeRegex.exec(command)) !== null) {
+        const value = parseInt(match[1]);
+        const unit = match[2].toLowerCase();
+
+        if (unit.startsWith("hour")) {
+            totalDurationMs += value * 3600000; // Convert hours to milliseconds
+            timeComponents.push(`${value} hour${value > 1 ? 's' : ''}`);
+        } else if (unit.startsWith("minute")) {
+            totalDurationMs += value * 60000; // Convert minutes to milliseconds
+            timeComponents.push(`${value} minute${value > 1 ? 's' : ''}`);
+        } else if (unit.startsWith("second")) {
+            totalDurationMs += value * 1000; // Convert seconds to milliseconds
+            timeComponents.push(`${value} second${value > 1 ? 's' : ''}`);
+        }
+    }
+
+    if (totalDurationMs > 0) {
+        // Display the parsed duration components
+        const timeString = timeComponents.join(", ");
+        displayMessage(`Setting a timer for ${timeString}.`, 'groq-response');
+
+        // Set the timer
         timer = setTimeout(() => {
             displayMessage("Timer ended! Time's up!", 'groq-response');
             alert("Time's up!");
-        }, timerMinutes * 60000); // Convert to milliseconds
+        }, totalDurationMs);
     } else {
-        displayMessage("Please specify the number of minutes for the timer.", 'groq-response');
+        displayMessage("Please specify the timer duration in hours, minutes, or seconds.", 'groq-response');
     }
 }
 
