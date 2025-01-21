@@ -712,84 +712,46 @@ async function getTime() {
             window.open(url, '_blank');
         }
 
-// Get sports scores and schedule from SportRadar API
+// Get sports scores and schedule 
 async function getSportsScores(command) {
-    const API_KEY = 'h0sGgyWZNlAsbxVyyf1Y5W0HboCvhijsRIUbSMzB';
-    const sport = 'football'; // You can change this to another sport like 'soccer', 'basketball', etc.
-    const corsProxy = 'https://cors-anywhere.herokuapp.com/'; // CORS proxy to bypass the CORS policy
+    const API_KEY = 'AIzaSyC7WdLnBCeYn9AyjOtHCOfjD9alvGh9qO0';  // Use your API key here
+    const SEARCH_ENGINE_ID = '64e19cd1bf5ee4bf1';  // Your Custom Search Engine ID
 
     try {
-        // Check if the user is asking for upcoming sports events
-        if (command.includes("upcoming sports") || command.includes("next game")) {
-            // Fetch upcoming schedule using the CORS proxy
-            const scheduleResponse = await fetch(`${corsProxy}https://api.sportradar.us/football/trial/v4/en/schedules/next.json?api_key=${API_KEY}`);
-            const scheduleData = await scheduleResponse.json();
+        // Look for keywords in the command related to sports events
+        if (command.includes("game") || command.includes("time") || command.includes("schedule")) {
+            const query = `sports schedule ${command}`;
 
-            if (scheduleData && scheduleData.sport_events) {
-                const upcomingSchedule = scheduleData.sport_events.map(event => {
-                    const date = new Date(event.start_time).toLocaleString();
-                    const homeTeam = event.home_team.name;
-                    const awayTeam = event.away_team.name;
-                    return `${date}: ${homeTeam} vs ${awayTeam}`;
-                }).join('\n');
+            // Fetch search results from Google Custom Search API
+            const searchResponse = await fetch(`https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(query)}&key=${API_KEY}&cx=${SEARCH_ENGINE_ID}`);
+            const searchData = await searchResponse.json();
 
-                // Display the upcoming schedule
-                const scheduleMessage = `Upcoming Sports Events:\n${upcomingSchedule}`;
-                displayMessage(scheduleMessage, 'groq-response');
-                speakText(scheduleMessage); // Speak the upcoming sports schedule using TTS
+            if (searchData.items && searchData.items.length > 0) {
+                const gameDetails = searchData.items[0];  // Get the first result, assuming it has relevant data
+
+                const title = gameDetails.title;  // Game name or title
+                const snippet = gameDetails.snippet;  // A short description of the game (like time and teams)
+                const link = gameDetails.link;  // Link to the page with more details
+
+                // Prepare and display the result
+                const gameMessage = `Game: ${title}\nDetails: ${snippet}\nMore Info: ${link}`;
+                displayMessage(gameMessage, 'groq-response');
+                speakText(gameMessage);  // Speak the game information using TTS
             } else {
-                const errorMessage = 'No upcoming sports events found.';
-                displayMessage(errorMessage, 'groq-response');
-                speakText(errorMessage); // Speak the error message using TTS
+                const noResultsMessage = "Sorry, I couldn't find the game you're looking for.";
+                displayMessage(noResultsMessage, 'groq-response');
+                speakText(noResultsMessage);  // Speak the error message using TTS
             }
         } else {
-            // Extract team names from the command if it includes "who is winning"
-            const teamsRegex = /([A-Za-z\s]+)\s+or\s+([A-Za-z\s]+)/i;
-            const match = command.match(teamsRegex);
-
-            if (match) {
-                const team1 = match[1].trim();
-                const team2 = match[2].trim();
-
-                // Fetch live scores for football (or another sport) using CORS proxy
-                const liveScoresResponse = await fetch(`${corsProxy}https://api.sportradar.us/football/trial/v4/en/schedules.json?api_key=${API_KEY}`);
-                const liveScoresData = await liveScoresResponse.json();
-
-                if (liveScoresData && liveScoresData.sport_events) {
-                    const game = liveScoresData.sport_events.find(event => {
-                        const homeTeam = event.home_team.name.toLowerCase();
-                        const awayTeam = event.away_team.name.toLowerCase();
-                        return (homeTeam.includes(team1.toLowerCase()) && awayTeam.includes(team2.toLowerCase())) || 
-                               (homeTeam.includes(team2.toLowerCase()) && awayTeam.includes(team1.toLowerCase()));
-                    });
-
-                    if (game) {
-                        const homeTeam = game.home_team.name;
-                        const awayTeam = game.away_team.name;
-                        const homeScore = game.home_team_score;
-                        const awayScore = game.away_team_score;
-                        const winner = homeScore > awayScore ? homeTeam : awayScore > homeScore ? awayTeam : 'It\'s a tie';
-
-                        const scoreMessage = `The game between ${homeTeam} and ${awayTeam} is currently: ${homeScore} - ${awayScore}. ${winner} is winning.`;
-                        displayMessage(scoreMessage, 'groq-response');
-                        speakText(scoreMessage); // Speak the score and winner using TTS
-                    } else {
-                        const noGameMessage = `No game is currently being played between ${team1} and ${team2}.`;
-                        displayMessage(noGameMessage, 'groq-response');
-                        speakText(noGameMessage); // Speak the no-game message using TTS
-                    }
-                }
-            } else {
-                const errorMessage = 'Please specify two teams to check the score (e.g., "Who is winning the football game, Buffalo or Denver?")';
-                displayMessage(errorMessage, 'groq-response');
-                speakText(errorMessage); // Speak the error message using TTS
-            }
+            const errorMessage = "Please specify the team or game you're looking for.";
+            displayMessage(errorMessage, 'groq-response');
+            speakText(errorMessage);  // Speak the error message using TTS
         }
     } catch (error) {
-        console.error('Error fetching sports data:', error);
-        const errorMessage = 'Error occurred while fetching sports scores or schedule.';
+        console.error('Error fetching data:', error);
+        const errorMessage = 'An error occurred while fetching sports data.';
         displayMessage(errorMessage, 'groq-response');
-        speakText(errorMessage); // Speak the error message using TTS
+        speakText(errorMessage);  // Speak the error message using TTS
     }
 }
 
