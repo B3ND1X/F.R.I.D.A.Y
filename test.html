@@ -459,8 +459,7 @@
                 sendButton.addEventListener('click', handleUserInput);
             };
 
-                
-           // Process the command and check for flexible queries
+                // Process the command and check for flexible queries
 function processCommand(command) {
     command = command.toLowerCase(); // Normalize the command for case-insensitive matching
 
@@ -489,14 +488,20 @@ function processCommand(command) {
         command.includes("game") || 
         command.includes("match") || 
         command.includes("winning") || 
-        command.includes("schedule")
+        command.includes("schedule") ||
+        command.includes("raptors") ||  // Explicitly add the team name check
+        command.includes("nba")        // Generic check for any basketball-related query
     ) {
         // General sports-related queries like score, who is winning, or match schedule
-        getSportsScores(command);
+        getSportsScores(command);  // Call the function to get sports scores
+    } else if (command.includes("search")) {
+        let query = command.replace("search", "").trim();
+        searchWeb(query);  // Add web search handling
     } else {
         sendToGroq(command); // Send to Groq if no matches
     }
 }
+
 
 
 
@@ -715,7 +720,7 @@ async function getTime() {
             window.open(url, '_blank');
         }
 
-        // sports
+// Get sports scores and schedule
 async function getSportsScores(command) {
     const API_KEY = 'AIzaSyC7WdLnBCeYn9AyjOtHCOfjD9alvGh9qO0'; // Your API key
     const SEARCH_ENGINE_ID = '64e19cd1bf5ee4bf1'; // Your Custom Search Engine ID
@@ -764,7 +769,7 @@ async function getSportsScores(command) {
         displayMessage(errorMessage, 'groq-response');
         speakText(errorMessage); // Speak the error message
     }
-        
+}
     </script>
 </body>
 </html>
