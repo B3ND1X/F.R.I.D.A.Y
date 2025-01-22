@@ -818,7 +818,22 @@ function setVolume(volume) {
     }
 }
 
-// Function to send email (triggered by voice)
+// Function to send email
+function sendEmail(recipient, subject, content) {
+    // URL encode all parts of the email for the mailto link
+    const encodedRecipient = encodeURIComponent(recipient.replace(" at ", "@"));
+    const encodedSubject = encodeURIComponent(subject);
+    const encodedContent = encodeURIComponent(content);
+    
+    // Construct the mailto link
+    let mailtoLink = `mailto:${encodedRecipient}?subject=${encodedSubject}&body=${encodedContent}`;
+    console.log("Sending email via: " + mailtoLink);
+    
+    // Open the email client (this may vary based on browser/client)
+    window.location.href = mailtoLink;
+}
+
+// Function to handle the process of sending the email
 function sendEmailCommand() {
     speakText("Who do you want to send the email to?");
     recognition.stop();  // Stop speech recognition for now
@@ -891,39 +906,6 @@ function sendEmailCommand() {
             };
         };
     };
-}
-
-// Function to send email
-function sendEmail(recipient, subject, content) {
-    let mailtoLink = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(content)}`;
-    window.location.href = mailtoLink;  // This opens the email client
-}
-
-// Function to send the content to Groq for grammar and punctuation revision
-function sendToGroq(content, callback) {
-    fetch("https://api.groq.com/openai/v1/chat/completions", {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-            model: "llama-3.3-70b-versatile",
-            messages: [{
-                role: "user",
-                content: content
-            }]
-        })
-    })
-    .then(response => response.json())
-    .then(data => {
-        let revisedContent = data.choices[0].message.content;
-        callback(revisedContent);  // Return the revised content
-    })
-    .catch(error => {
-        console.error("Error:", error);
-        speakText("Error with grammar revision.");
-    });
 }
         
 
