@@ -725,11 +725,14 @@ async function getSportsScores(command) {
         const teamMatch = command.match(/(raptors|lakers|warriors|celtics|heat|jets|cowboys|yankees|dodgers|arsenal|barcelona|real madrid)/i);
         const teamName = teamMatch ? teamMatch[0] : "sports"; // Default to "sports" if no team is found
 
-        const query = `${teamName} next game time and opponent`;
+        const query = `${teamName} next game score`;
 
         // Fetch search results
         const searchResponse = await fetch(`https://www.googleapis.com/customsearch/v1?q=${encodeURIComponent(query)}&key=${API_KEY}&cx=${SEARCH_ENGINE_ID}`);
         const searchData = await searchResponse.json();
+
+        // Log the full search response for debugging
+        console.log('Search Response:', searchData);
 
         if (searchData.items && searchData.items.length > 0) {
             const bestResult = searchData.items[0]; // Use the first result
@@ -761,8 +764,6 @@ async function getSportsScores(command) {
         displayMessage(errorMessage, 'groq-response');
         speakText(errorMessage); // Speak the error message
     }
-}
-
         
     </script>
 </body>
