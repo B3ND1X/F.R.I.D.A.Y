@@ -824,11 +824,11 @@ function sendEmail(recipient, subject, content) {
     const encodedRecipient = encodeURIComponent(recipient.replace(" at ", "@"));
     const encodedSubject = encodeURIComponent(subject);
     const encodedContent = encodeURIComponent(content);
-    
+
     // Construct the mailto link
     let mailtoLink = `mailto:${encodedRecipient}?subject=${encodedSubject}&body=${encodedContent}`;
     console.log("Sending email via: " + mailtoLink);
-    
+
     // Open the email client (this may vary based on browser/client)
     window.location.href = mailtoLink;
 }
