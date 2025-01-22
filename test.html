@@ -736,8 +736,15 @@ async function getSportsScores(command) {
                 const snippet = gameDetails.snippet;  // A short description of the game (like time and teams)
                 const link = gameDetails.link;  // Link to the page with more details
 
-                // Prepare and display the result
-                const gameMessage = `Game: ${title}\nDetails: ${snippet}\nMore Info: ${link}`;
+                // Extract game time and teams from snippet if available
+                const gameTimeMatch = snippet.match(/(\d{1,2}:\d{2} [APM]{2})/); // Match time (e.g., 7:30 PM)
+                const teamsMatch = snippet.match(/(vs\. [A-Za-z\s]+)/); // Match teams (e.g., "vs. Raptors")
+
+                const gameTime = gameTimeMatch ? gameTimeMatch[0] : 'Not available';
+                const teams = teamsMatch ? teamsMatch[0].replace('vs. ', '') : 'Not available';
+
+                // Format the result message
+                const gameMessage = `The game is at ${gameTime} between ${teams}. More Info: ${link}`;
                 displayMessage(gameMessage, 'groq-response');
                 speakText(gameMessage);  // Speak the game information using TTS
             } else {
@@ -759,8 +766,15 @@ async function getSportsScores(command) {
                 const snippet = scheduleDetails.snippet;  // A short description of the schedule
                 const link = scheduleDetails.link;  // Link to the page with more details
 
-                // Prepare and display the result
-                const scheduleMessage = `Schedule: ${title}\nDetails: ${snippet}\nMore Info: ${link}`;
+                // Extract game time and teams from snippet if available
+                const gameTimeMatch = snippet.match(/(\d{1,2}:\d{2} [APM]{2})/); // Match time (e.g., 7:30 PM)
+                const teamsMatch = snippet.match(/(vs\. [A-Za-z\s]+)/); // Match teams (e.g., "vs. Raptors")
+
+                const gameTime = gameTimeMatch ? gameTimeMatch[0] : 'Not available';
+                const teams = teamsMatch ? teamsMatch[0].replace('vs. ', '') : 'Not available';
+
+                // Format the result message
+                const scheduleMessage = `The next game is at ${gameTime} between ${teams}. More Info: ${link}`;
                 displayMessage(scheduleMessage, 'groq-response');
                 speakText(scheduleMessage);  // Speak the schedule information using TTS
             } else {
