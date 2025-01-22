@@ -818,69 +818,113 @@ function setVolume(volume) {
     }
 }
 
-// Function to handle email sending command
+// Function to send email (triggered by voice)
 function sendEmailCommand() {
-    // Ask for the recipient's email address using STT
-    speakText("Who would you like to send the email to?");
-    startSTT((recipient) => {
-        if (!recipient) return speakText("No recipient provided.");
+    speakText("Who do you want to send the email to?");
+    recognition.stop();  // Stop speech recognition for now
 
-        // Replace "at" with "@" for email address
-        recipient = recipient.replace(/\bat\b/g, '@');  // This will replace 'at' with '@'
+    // Wait for recipient input
+    recognition.onresult = (event) => {
+        let recipient = '';
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            recipient += event.results[i][0].transcript;
+        }
+        recipient = recipient.trim();
+        console.log("Recipient:", recipient);
 
-        // Ask for the subject using STT
+        // Ask for subject
         speakText("What is the subject of the email?");
-        startSTT((subject) => {
-            if (!subject) return speakText("No subject provided.");
+        recognition.stop();  // Stop speech recognition for now
 
-            // Ask for the content of the email using STT
-            speakText("Please provide the content of the email.");
-            startSTT((content) => {
-                if (!content) return speakText("No content provided.");
+        recognition.onresult = (event) => {
+            let subject = '';
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                subject += event.results[i][0].transcript;
+            }
+            subject = subject.trim();
+            console.log("Subject:", subject);
 
-                // Send the email content to Groq for grammar and punctuation correction
-                sendToGroq(content).then((correctedContent) => {
-                    // Once Groq processes the content, we format the email and prepare it
-                    let email = {
-                        to: recipient,
-                        subject: subject,
-                        body: correctedContent,
-                    };
+            // Ask for content
+            speakText("What is the content of the email?");
+            recognition.stop();  // Stop speech recognition for now
 
-                    // Display the corrected content (optional, for debugging)
-                    displayMessage(`Email Draft:\nTo: ${email.to}\nSubject: ${email.subject}\nBody: ${email.body}`, 'groq-response');
+            recognition.onresult = (event) => {
+                let content = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    content += event.results[i][0].transcript;
+                }
+                content = content.trim();
+                console.log("Content:", content);
 
-                    // Ask for confirmation to send the email using TTS
-                    speakText("Would you like to send it? Please say yes or no.");
+                // Send to Groq for grammar and punctuation improvement
+                sendToGroq(content, (revisedContent) => {
+                    // Fill the email with the recipient, subject, and revised content
+                    let emailBody = `
+                        Recipient: ${recipient}
+                        Subject: ${subject}
+                        Content: ${revisedContent}
+                    `;
+                    console.log("Drafted email:", emailBody);
 
-                    // Start listening for the user's confirmation (yes/no response)
-                    startSTT((confirmationResponse) => {
-                        confirmationResponse = confirmationResponse.toLowerCase();
+                    // Use TTS to confirm if email is ready to send
+                    speakText("Email has been drafted. Would you like to send it?");
+                    
+                    recognition.stop();  // Stop speech recognition for now
 
-                        if (confirmationResponse.includes("yes")) {
-                            // Create the mailto link to send the email using the browser's default email handler
-                            let mailtoLink = `mailto:${email.to}?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`;
-
-                            // Open the email client with the mailto link (this will open the default email client with the drafted content)
-                            window.location.href = mailtoLink;
-
-                            // TTS Confirmation after sending the email
-                            const sendConfirmationMessage = `The email has been sent to ${email.to}.`;
-                            speakText(sendConfirmationMessage); // Notify the user via TTS
-                        } else {
-                            // Inform the user that the email was not sent
-                            speakText("The email was not sent. You can try again anytime.");
+                    recognition.onresult = (event) => {
+                        let confirmation = '';
+                        for (let i = event.resultIndex; i < event.results.length; i++) {
+                            confirmation += event.results[i][0].transcript;
                         }
-                    });
+                        confirmation = confirmation.trim().toLowerCase();
+                        console.log("Confirmation:", confirmation);
 
-                }).catch((error) => {
-                    speakText("There was an issue correcting the email content. Please try again.");
+                        if (confirmation.includes("yes")) {
+                            // Send the email
+                            sendEmail(recipient, subject, revisedContent);
+                            speakText("Email sent successfully.");
+                        } else {
+                            speakText("Email not sent.");
+                        }
+                    };
                 });
-            });
-        });
-    });
+            };
+        };
+    };
 }
 
+// Function to send email
+function sendEmail(recipient, subject, content) {
+    let mailtoLink = `mailto:${recipient}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(content)}`;
+    window.location.href = mailtoLink;  // This opens the email client
+}
+
+// Function to send the content to Groq for grammar and punctuation revision
+function sendToGroq(content, callback) {
+    fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: [{
+                role: "user",
+                content: content
+            }]
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        let revisedContent = data.choices[0].message.content;
+        callback(revisedContent);  // Return the revised content
+    })
+    .catch(error => {
+        console.error("Error:", error);
+        speakText("Error with grammar revision.");
+    });
+}
         
 
         
