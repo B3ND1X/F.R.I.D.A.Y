@@ -459,12 +459,32 @@
                 sendButton.addEventListener('click', handleUserInput);
             };
 
-                // Process the command and check for flexible queries
+               // Process the command and check for flexible queries
 function processCommand(command) {
     command = command.toLowerCase(); // Normalize the command for case-insensitive matching
 
-    // First, check for specific commands that we can map directly
-    if (command.includes("set a timer")) {
+    // Check for volume commands
+    if (command.includes("set volume")) {
+        let volumeLevel = command.match(/\d+/);  // Extract the percentage (e.g., 50, 100)
+        
+        if (volumeLevel) {
+            volumeLevel = parseInt(volumeLevel[0]);
+            
+            if (volumeLevel >= 0 && volumeLevel <= 100) {
+                setVolume(volumeLevel); // Call the function to set the volume
+            } else {
+                displayMessage("Volume must be between 0 and 100.", 'groq-response');
+                speakText("Volume must be between 0 and 100.");
+            }
+        } else if (command.includes("max")) {
+            setVolume(100); // Set volume to 100% (max)
+        } else if (command.includes("min")) {
+            setVolume(0); // Set volume to 0% (min)
+        } else {
+            displayMessage("Please specify a valid volume percentage (e.g., 50, max).", 'groq-response');
+            speakText("Please specify a valid volume percentage.");
+        }
+    } else if (command.includes("set a timer")) {
         setTimer(command); // Timer handling
     } else if (command.includes("set an alarm")) {
         setAlarm(command);
@@ -770,6 +790,25 @@ async function getSportsScores(command) {
         speakText(errorMessage); // Speak the error message
     }
 }
+
+// Function to set the volume
+function setVolume(volume) {
+    // If this is for a browser environment, you'll control media volume like this:
+    let mediaElement = document.querySelector('audio, video'); // Assuming there's an audio or video element
+    if (mediaElement) {
+        mediaElement.volume = volume / 100;  // Set the volume as a percentage (0-1)
+        const volumeMessage = `Volume set to ${volume}%.`;
+        displayMessage(volumeMessage, 'groq-response');
+        speakText(volumeMessage); // Speak the volume setting message
+    } else {
+        // If it's not a media element, you might want to control the system volume with other methods
+        const errorMessage = "Volume control is only available for media elements in this environment.";
+        displayMessage(errorMessage, 'groq-response');
+        speakText(errorMessage); // Speak the error message if no media element is found
+    }
+}
+
+        
     </script>
 </body>
 </html>
