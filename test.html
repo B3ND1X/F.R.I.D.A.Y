@@ -871,38 +871,35 @@ function sendEmailCommand() {
                 content = content.trim();
                 console.log("Content:", content);
 
-                // Send to Groq for grammar and punctuation improvement
-                sendToGroq(content, (revisedContent) => {
-                    // Fill the email with the recipient, subject, and revised content
-                    let emailBody = `
-                        Recipient: ${recipient}
-                        Subject: ${subject}
-                        Content: ${revisedContent}
-                    `;
-                    console.log("Drafted email:", emailBody);
+                // Fill the email with the recipient, subject, and content
+                let emailBody = `
+                    Recipient: ${recipient}
+                    Subject: ${subject}
+                    Content: ${content}
+                `;
+                console.log("Drafted email:", emailBody);
 
-                    // Use TTS to confirm if email is ready to send
-                    speakText("Email has been drafted. Would you like to send it?");
-                    
-                    recognition.stop();  // Stop speech recognition for now
+                // Use TTS to confirm if email is ready to send
+                speakText("Email has been drafted. Would you like to send it?");
+                
+                recognition.stop();  // Stop speech recognition for now
 
-                    recognition.onresult = (event) => {
-                        let confirmation = '';
-                        for (let i = event.resultIndex; i < event.results.length; i++) {
-                            confirmation += event.results[i][0].transcript;
-                        }
-                        confirmation = confirmation.trim().toLowerCase();
-                        console.log("Confirmation:", confirmation);
+                recognition.onresult = (event) => {
+                    let confirmation = '';
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        confirmation += event.results[i][0].transcript;
+                    }
+                    confirmation = confirmation.trim().toLowerCase();
+                    console.log("Confirmation:", confirmation);
 
-                        if (confirmation.includes("yes")) {
-                            // Send the email
-                            sendEmail(recipient, subject, revisedContent);
-                            speakText("Email sent successfully.");
-                        } else {
-                            speakText("Email not sent.");
-                        }
-                    };
-                });
+                    if (confirmation.includes("yes")) {
+                        // Send the email
+                        sendEmail(recipient, subject, content);
+                        speakText("Email sent successfully.");
+                    } else {
+                        speakText("Email not sent.");
+                    }
+                };
             };
         };
     };
