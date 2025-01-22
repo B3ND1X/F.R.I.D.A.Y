@@ -825,6 +825,9 @@ function sendEmailCommand() {
     startSTT((recipient) => {
         if (!recipient) return speakText("No recipient provided.");
 
+        // Replace "at" with "@" for email address
+        recipient = recipient.replace(/\bat\b/g, '@');  // This will replace 'at' with '@'
+
         // Ask for the subject using STT
         speakText("What is the subject of the email?");
         startSTT((subject) => {
@@ -874,56 +877,6 @@ function sendEmailCommand() {
                     speakText("There was an issue correcting the email content. Please try again.");
                 });
             });
-        });
-    });
-}
-
-// Function to start speech-to-text (STT) for capturing information
-function startSTT(callback) {
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = 'en-US';
-    recognition.start();
-
-    recognition.onresult = function(event) {
-        const transcript = event.results[0][0].transcript;
-        callback(transcript);
-    };
-
-    recognition.onerror = function(event) {
-        console.error('Speech recognition error:', event.error);
-        speakText("Sorry, I didn't catch that. Please try again.");
-    };
-}
-
-// Function to send content to Groq for grammar and spell check
-function sendToGroq(content) {
-    return new Promise((resolve, reject) => {
-        // Send the content to Groq API for grammar correction
-        fetch("https://api.groq.com/openai/v1/chat/completions", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${apiKey}`, // Add your API key here
-            },
-            body: JSON.stringify({
-                model: "llama-3.3-70b-versatile", // Specify model here
-                messages: [{
-                    role: "user",
-                    content: content
-                }]
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.choices && data.choices[0] && data.choices[0].message) {
-                const correctedContent = data.choices[0].message.content; // Get the corrected content from Groq response
-                resolve(correctedContent); // Resolve with corrected content
-            } else {
-                reject("Error: Invalid response from Groq.");
-            }
-        })
-        .catch(error => {
-            reject(error); // Reject if there is an error during the request
         });
     });
 }
