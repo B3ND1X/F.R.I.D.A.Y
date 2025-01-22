@@ -820,8 +820,10 @@ function setVolume(volume) {
 
 // Function to send email
 function sendEmail(recipient, subject, content) {
-    // URL encode all parts of the email for the mailto link
-    const encodedRecipient = encodeURIComponent(recipient.replace(" at ", "@"));
+    // Ensure the recipient has the correct email format by replacing ' at ' with '@'
+    const formattedRecipient = recipient.replace(" at ", "@");
+    // Encode all parts of the email for the mailto link
+    const encodedRecipient = encodeURIComponent(formattedRecipient);
     const encodedSubject = encodeURIComponent(subject);
     const encodedContent = encodeURIComponent(content);
 
@@ -904,7 +906,8 @@ function sendEmailCommand() {
         };
     };
 }
-        
+
+
 
         
     </script>
