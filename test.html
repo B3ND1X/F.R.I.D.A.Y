@@ -818,42 +818,81 @@ function setVolume(volume) {
     }
 }
 
-// Function to send an email command
+// Function to handle email sending command
 function sendEmailCommand() {
-    let recipient = prompt("Who would you like to send the email to?"); // Ask for the recipient
-    if (!recipient) return; // If no recipient is provided, exit the function
+    // Ask for the recipient's email address using STT
+    speakText("Who would you like to send the email to?");
+    startSTT((recipient) => {
+        if (!recipient) return speakText("No recipient provided.");
 
-    let subject = prompt("What is the subject of the email?"); // Ask for the subject
-    if (!subject) return; // If no subject is provided, exit the function
+        // Ask for the subject using STT
+        speakText("What is the subject of the email?");
+        startSTT((subject) => {
+            if (!subject) return speakText("No subject provided.");
 
-    let content = prompt("Please provide the content of the email:"); // Ask for the content of the email
-    if (!content) return; // If no content is provided, exit the function
+            // Ask for the content of the email using STT
+            speakText("Please provide the content of the email.");
+            startSTT((content) => {
+                if (!content) return speakText("No content provided.");
 
-    // Send the content to Groq for grammar and spell check
-    sendToGroq(content).then((correctedContent) => {
-        // Once Groq processes the content, we format the email and prepare it
-        let email = {
-            to: recipient,
-            subject: subject,
-            body: correctedContent,
-        };
+                // Send the email content to Groq for grammar and punctuation correction
+                sendToGroq(content).then((correctedContent) => {
+                    // Once Groq processes the content, we format the email and prepare it
+                    let email = {
+                        to: recipient,
+                        subject: subject,
+                        body: correctedContent,
+                    };
 
-        // Display the corrected content (optional, for debugging)
-        displayMessage(`Email Draft:\nTo: ${email.to}\nSubject: ${email.subject}\nBody: ${email.body}`, 'groq-response');
+                    // Display the corrected content (optional, for debugging)
+                    displayMessage(`Email Draft:\nTo: ${email.to}\nSubject: ${email.subject}\nBody: ${email.body}`, 'groq-response');
 
-        // Create the mailto link to send the email using the browser's default email handler
-        let mailtoLink = `mailto:${email.to}?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`;
+                    // Ask for confirmation to send the email using TTS
+                    speakText("Would you like to send it? Please say yes or no.");
 
-        // Open the email client with the mailto link (this will open the default email client with the drafted content)
-        window.location.href = mailtoLink;
+                    // Start listening for the user's confirmation (yes/no response)
+                    startSTT((confirmationResponse) => {
+                        confirmationResponse = confirmationResponse.toLowerCase();
 
-        // TTS Confirmation using speakText
-        const confirmationMessage = `The email has been drafted, ready for you to send it.`;
-        speakText(confirmationMessage); // Notify the user via TTS
-    }).catch((error) => {
-        displayMessage("There was an issue correcting the email content. Please try again.", 'groq-response');
-        speakText("There was an issue correcting the email content. Please try again.");
+                        if (confirmationResponse.includes("yes")) {
+                            // Create the mailto link to send the email using the browser's default email handler
+                            let mailtoLink = `mailto:${email.to}?subject=${encodeURIComponent(email.subject)}&body=${encodeURIComponent(email.body)}`;
+
+                            // Open the email client with the mailto link (this will open the default email client with the drafted content)
+                            window.location.href = mailtoLink;
+
+                            // TTS Confirmation after sending the email
+                            const sendConfirmationMessage = `The email has been sent to ${email.to}.`;
+                            speakText(sendConfirmationMessage); // Notify the user via TTS
+                        } else {
+                            // Inform the user that the email was not sent
+                            speakText("The email was not sent. You can try again anytime.");
+                        }
+                    });
+
+                }).catch((error) => {
+                    speakText("There was an issue correcting the email content. Please try again.");
+                });
+            });
+        });
     });
+}
+
+// Function to start speech-to-text (STT) for capturing information
+function startSTT(callback) {
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'en-US';
+    recognition.start();
+
+    recognition.onresult = function(event) {
+        const transcript = event.results[0][0].transcript;
+        callback(transcript);
+    };
+
+    recognition.onerror = function(event) {
+        console.error('Speech recognition error:', event.error);
+        speakText("Sorry, I didn't catch that. Please try again.");
+    };
 }
 
 // Function to send content to Groq for grammar and spell check
