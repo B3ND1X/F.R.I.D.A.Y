@@ -118,40 +118,6 @@
             z-index: -1;
         }
 
-        .modal {
-        display: none;
-        position: fixed;
-        z-index: 1;
-        left: 0;
-        top: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0,0,0,0.5);
-        justify-content: center;
-        align-items: center;
-    }
-
-    .modal-content {
-        background-color: white;
-        padding: 20px;
-        border-radius: 10px;
-        text-align: center;
-        width: 80%;
-        max-width: 400px;
-    }
-
-    .btn {
-        background-color: #4CAF50;
-        color: white;
-        padding: 10px 20px;
-        border: none;
-        cursor: pointer;
-        border-radius: 5px;
-    }
-
-    .btn:hover {
-        background-color: #45a049;
-    }
         
     </style>
 </head>
@@ -176,76 +142,7 @@
     </div>
 
     <div id="orb"></div> <!-- Orb in the background -->
-    <!-- Modal for Mobile Device Permissions -->
-<div id="permissionModal" class="modal">
-    <div class="modal-content">
-        <h3>Permission Request</h3>
-        <p>We need permission to access your location and play sound for the assistant to function properly. Please enable these permissions.</p>
-        <button id="grantPermissions" class="btn">Grant Permissions</button>
-    </div>
-</div>
-
     <script>
-
- let geolocationGranted = false;
-let audioPermissionGranted = false;
-
-function requestPermissions() {
-    if (isMobile()) {
-        // Show a pop-up to request permissions
-        let popup = document.createElement("div");
-        popup.id = "permissions-popup";
-        popup.innerHTML = `
-            <div>
-                <p>Please grant the necessary permissions for geolocation and sound to use this feature.</p>
-                <button onclick="grantPermissions()">Grant Permissions</button>
-            </div>
-        `;
-        document.body.appendChild(popup);
-    }
-}
-
-function grantPermissions() {
-    // Close the pop-up
-    let popup = document.getElementById("permissions-popup");
-    if (popup) {
-        popup.style.display = "none";
-    }
-
-    // Request Geolocation permission (after user clicks the button)
-    navigator.geolocation.getCurrentPosition(
-        function(position) {
-            console.log('Geolocation permission granted');
-            geolocationGranted = true;
-        },
-        function(error) {
-            console.error('Geolocation permission denied');
-            geolocationGranted = false;
-        }
-    );
-
-    // Request Audio Permission (by trying to play the sound)
-    const audioTest = new Audio('activation.wav');
-    audioTest.play().then(() => {
-        console.log('Audio permission granted');
-        audioPermissionGranted = true;
-    }).catch((error) => {
-        console.error('Audio permission denied', error);
-        audioPermissionGranted = false;
-    });
-
-    // Once permissions are granted, you can activate the wake word functionality
-    if (geolocationGranted && audioPermissionGranted) {
-        console.log("Permissions granted. Ready to detect wake word and play activation sound.");
-    } else {
-        console.log("Permissions not granted. Please try again.");
-    }
-}
-
-function isMobile() {
-    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-}
-        
         const apiKey = "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"; // Groq API key
         const weatherApiKey = '80445369031848dbad520436251201'; // Weather API key
         const guardianApiKey = '962cca3b-893a-4285-969b-51e44bf81615'; // The Guardian API key
