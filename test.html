@@ -171,14 +171,14 @@
     <button onclick="initializeApp()">Continue</button>
   </div>
     <script>
-         let audio = new Audio('activation.wav');
+     let microphonePermissionGranted = false;
 
     // Detect if the user is on a mobile device
     function isMobile() {
-      return /Mobi|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
+      return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     }
 
-    // Display popup only on mobile devices
+    // Show popup only on mobile devices
     window.onload = () => {
       if (isMobile()) {
         document.getElementById('mobilePopup').style.display = 'flex';
@@ -187,12 +187,48 @@
       }
     };
 
-    // Initialize app and permissions
-    function initializeApp() {
+    // Initialize permissions
+    async function initializePermissions() {
       document.getElementById('mobilePopup').style.display = 'none';
-      audio.play()
-        .then(() => console.log('Audio playback initialized.'))
-        .catch(() => console.log('Audio playback blocked until wake word.'));
+      try {
+        await requestMicrophoneAccess();
+        requestGeolocation();
+        console.log("Permissions granted successfully.");
+      } catch (error) {
+        console.error("Error requesting permissions:", error);
+      }
+    }
+
+    // Request microphone access
+    function requestMicrophoneAccess() {
+      return new Promise((resolve, reject) => {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then((stream) => {
+            microphonePermissionGranted = true;
+            console.log("Microphone access granted.");
+            resolve();
+          })
+          .catch((err) => {
+            console.error("Microphone access denied:", err);
+            reject(err);
+          });
+      });
+    }
+
+    // Request geolocation permission
+    function requestGeolocation() {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            console.log(`Geolocation granted: Latitude ${position.coords.latitude}, Longitude ${position.coords.longitude}`);
+          },
+          (error) => {
+            console.error('Geolocation permission denied or unavailable:', error.message);
+          }
+        );
+      } else {
+        console.error('Geolocation is not supported by this browser.');
+      }
     }
         const apiKey = "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"; // Groq API key
         const weatherApiKey = '80445369031848dbad520436251201'; // Weather API key
