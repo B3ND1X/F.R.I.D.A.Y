@@ -187,32 +187,12 @@
 
     <script>
 
-   function requestPermissions() {
+ let geolocationGranted = false;
+let audioPermissionGranted = false;
+
+function requestPermissions() {
     if (isMobile()) {
-        // Request Geolocation permission
-        navigator.geolocation.getCurrentPosition(
-            function(position) {
-                console.log('Geolocation permission granted');
-                // Geolocation is granted, now we can use it
-                geolocationGranted = true;
-            },
-            function(error) {
-                console.error('Geolocation permission denied');
-                geolocationGranted = false;
-            }
-        );
-
-        // Request Audio Permission (by trying to play the sound)
-        const audioTest = new Audio('activation.wav');
-        audioTest.play().then(() => {
-            console.log('Audio permission granted');
-            audioPermissionGranted = true;
-        }).catch((error) => {
-            console.error('Audio permission denied', error);
-            audioPermissionGranted = false;
-        });
-
-        // Show a pop-up to inform the user to grant permissions
+        // Show a pop-up to request permissions
         let popup = document.createElement("div");
         popup.id = "permissions-popup";
         popup.innerHTML = `
@@ -232,9 +212,30 @@ function grantPermissions() {
         popup.style.display = "none";
     }
 
-    // Once permissions are granted, proceed with any necessary functionality
+    // Request Geolocation permission (after user clicks the button)
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            console.log('Geolocation permission granted');
+            geolocationGranted = true;
+        },
+        function(error) {
+            console.error('Geolocation permission denied');
+            geolocationGranted = false;
+        }
+    );
+
+    // Request Audio Permission (by trying to play the sound)
+    const audioTest = new Audio('activation.wav');
+    audioTest.play().then(() => {
+        console.log('Audio permission granted');
+        audioPermissionGranted = true;
+    }).catch((error) => {
+        console.error('Audio permission denied', error);
+        audioPermissionGranted = false;
+    });
+
+    // Once permissions are granted, you can activate the wake word functionality
     if (geolocationGranted && audioPermissionGranted) {
-        // Permissions granted, now you can start detecting the wake word and playing the sound
         console.log("Permissions granted. Ready to detect wake word and play activation sound.");
     } else {
         console.log("Permissions not granted. Please try again.");
