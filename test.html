@@ -166,70 +166,57 @@
     </div>
 
     <div id="orb"></div> <!-- Orb in the background -->
-    <div id="mobilePopup">
-    <p>This app requires permissions. Tap below to continue.</p>
-    <button onclick="initializeApp()">Continue</button>
-  </div>
+  <div id="mobilePopup" style="display: none;">
+  <p>This app requires permissions to function. Please grant access below.</p>
+  <button onclick="initializePermissions()">Continue</button>
+</div>
     <script>
-     let microphonePermissionGranted = false;
+      let microphonePermissionGranted = false;
 
-    // Detect if the user is on a mobile device
-    function isMobile() {
-      return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  // Improved mobile detection function
+  function isMobile() {
+    const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+    return /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent.toLowerCase());
+  }
+
+  // Request microphone access
+  function requestMicrophoneAccess() {
+    return new Promise((resolve, reject) => {
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then((stream) => {
+          microphonePermissionGranted = true;
+          console.log("Microphone access granted.");
+          resolve(); // Access granted
+        })
+        .catch((err) => {
+          console.error("Microphone access denied:", err);
+          reject(err); // Access denied
+        });
+    });
+  }
+
+  // Handle permissions initialization
+  async function initializePermissions() {
+    document.getElementById('mobilePopup').style.display = 'none';
+    try {
+      await requestMicrophoneAccess();
+      console.log("Microphone permissions granted.");
+    } catch (error) {
+      console.error("Error during permissions initialization:", error);
     }
+  }
 
-    // Show popup only on mobile devices
-    window.onload = () => {
-      if (isMobile()) {
-        document.getElementById('mobilePopup').style.display = 'flex';
-      } else {
-        console.log('Desktop detected: Popup not displayed.');
-      }
-    };
-
-    // Initialize permissions
-    async function initializePermissions() {
-      document.getElementById('mobilePopup').style.display = 'none';
-      try {
-        await requestMicrophoneAccess();
-        requestGeolocation();
-        console.log("Permissions granted successfully.");
-      } catch (error) {
-        console.error("Error requesting permissions:", error);
-      }
+  // Display popup only on mobile
+  window.onload = () => {
+    if (isMobile()) {
+      document.getElementById('mobilePopup').style.display = 'flex';
+    } else {
+      console.log('Desktop detected: Requesting microphone access directly.');
+      requestMicrophoneAccess()
+        .then(() => console.log('Microphone ready on desktop.'))
+        .catch(err => console.error('Error with desktop microphone:', err));
     }
-
-    // Request microphone access
-    function requestMicrophoneAccess() {
-      return new Promise((resolve, reject) => {
-        navigator.mediaDevices.getUserMedia({ audio: true })
-          .then((stream) => {
-            microphonePermissionGranted = true;
-            console.log("Microphone access granted.");
-            resolve();
-          })
-          .catch((err) => {
-            console.error("Microphone access denied:", err);
-            reject(err);
-          });
-      });
-    }
-
-    // Request geolocation permission
-    function requestGeolocation() {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            console.log(`Geolocation granted: Latitude ${position.coords.latitude}, Longitude ${position.coords.longitude}`);
-          },
-          (error) => {
-            console.error('Geolocation permission denied or unavailable:', error.message);
-          }
-        );
-      } else {
-        console.error('Geolocation is not supported by this browser.');
-      }
-    }
+  };
         const apiKey = "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"; // Groq API key
         const weatherApiKey = '80445369031848dbad520436251201'; // Weather API key
         const guardianApiKey = '962cca3b-893a-4285-969b-51e44bf81615'; // The Guardian API key
