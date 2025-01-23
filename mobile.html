@@ -24,99 +24,14 @@
     <meta charset="UTF-8">
     <title>F.R.I.D.AY Functional Responsive Intelligent Assistant for You</title>
     <style>
-        /* CSS styles unchanged */
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f4f4f9;
-            display: flex;
-            justify-content: space-between;
-            padding: 20px;
-            position: relative;
-        }
-        #chat-box-container {
-            width: 40%;
-            margin-right: 20px;
-            position: relative;
-            z-index: 2;
-        }
-        #chat-box {
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 10px;
-            background-color: white;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            height: 400px;
-            overflow-y: scroll;
-        }
-        .message {
-            padding: 8px;
-            border-radius: 5px;
-            margin: 5px 0;
-        }
-        .user-message {
-            background-color: #d1f7ff;
-            text-align: right;
-        }
-        .groq-response {
-            background-color: #e8f8e8;
-            text-align: left;
-        }
-        .listening {
-            background-color: #fff3cd;
-            text-align: center;
-            font-weight: bold;
-        }
-        #user-input {
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            width: 80%;
-        }
-        #send-btn {
-            padding: 10px;
-            border: none;
-            background-color: #007bff;
-            color: white;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        #send-btn:hover {
-            background-color: #0056b3;
-        }
-        #news-weather-container {
-            width: 35%;
-            display: flex;
-            flex-direction: column;
-            z-index: 2;
-        }
-        .card {
-            padding: 15px;
-            margin-bottom: 15px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            background-color: white;
-        }
-        #weather-info, #news-info {
-            font-size: 16px;
-            color: #555;
-        }
+      /* General Styles */
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
 
-        #orb {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(255, 255, 255, 0.8) 0%, rgba(0, 128, 255, 0.8) 60%, rgba(0, 64, 128, 0.8) 100%);
-            box-shadow: 0 0 10px rgba(0, 128, 255, 0.8), 0 0 40px rgba(0, 128, 255, 0.6);
-            transform: translate(-50%, -50%);
-            transition: transform 0.1s ease-out;
-            z-index: -1;
-        }
 /* Orb Styles */
 #orb {
     position: fixed;
@@ -136,7 +51,7 @@
 /* Chatbox Styles */
 #chatbox {
     position: fixed;
-    bottom: 80px; /* Keep space for the orb */
+    bottom: 90px; /* Keep space for the orb */
     left: 10%;
     width: 80%;
     height: 200px;
@@ -149,14 +64,145 @@
     justify-content: flex-start;
 }
 
-/* Modify the chatbox input for mobile */
+/* Chatbox Header */
+#chatbox-header {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+/* Chatbox Input Area */
 #chatbox input {
     width: 100%;
     padding: 10px;
     border: 1px solid #ddd;
     border-radius: 10px;
+    font-size: 16px;
 }
-        
+
+/* Messages in Chatbox */
+#chatbox-messages {
+    flex-grow: 1;
+    overflow-y: auto;
+    margin-bottom: 10px;
+}
+
+/* Chatbox Send Button */
+#chatbox-send {
+    padding: 10px 15px;
+    background-color: #00A1FF;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+}
+
+#chatbox-send:hover {
+    background-color: #0078b3;
+}
+
+/* Hide weather and news cards on mobile */
+#weather-card, #news-card {
+    display: block;  /* Default state */
+}
+
+/* Mobile-specific Styles */
+@media screen and (max-width: 767px) {
+    /* Hide weather and news cards on mobile devices */
+    #weather-card, #news-card {
+        display: none;
+    }
+
+    /* Adjust orb position for mobile */
+    #orb {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background-color: #00A1FF;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        cursor: pointer;
+    }
+
+    /* Adjust chatbox layout for mobile */
+    #chatbox {
+        position: fixed;
+        bottom: 90px;  /* Keep space for the orb */
+        left: 10%;
+        width: 80%;
+        height: 200px;
+        background-color: #fff;
+        border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+    }
+
+    /* Chatbox messages area adjustment */
+    #chatbox-messages {
+        flex-grow: 1;
+        overflow-y: auto;
+        margin-bottom: 10px;
+    }
+
+    /* Adjust chatbox send button for mobile */
+    #chatbox-send {
+        padding: 10px 15px;
+        background-color: #00A1FF;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+    }
+
+    #chatbox-send:hover {
+        background-color: #0078b3;
+    }
+}
+
+/* For larger screens (like tablets and desktops) */
+@media screen and (min-width: 768px) {
+    /* Ensure weather and news cards are visible on larger screens */
+    #weather-card, #news-card {
+        display: block;
+    }
+
+    /* Reset orb and chatbox layout for non-mobile */
+    #orb {
+        position: absolute;
+        bottom: auto;
+        right: auto;
+        width: 60px;
+        height: 60px;
+        background-color: #00A1FF;
+    }
+
+    #chatbox {
+        position: absolute;
+        bottom: 10px;
+        left: 10%;
+        width: 80%;
+        height: 250px;
+        background-color: #fff;
+        border-radius: 15px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        padding: 20px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+    }
+}
+
     </style>
 </head>
 <body>
@@ -182,31 +228,50 @@
     <div id="orb"></div> <!-- Orb in the background -->
     <script>
 
-        // Step 1: Detect if the user is on a mobile device
+ // Function to check if the device is mobile based on viewport size
 function isMobileDevice() {
-    const userAgent = window.navigator.userAgent;
-    return /iPhone|iPad|iPod|Android/i.test(userAgent); // Detects iOS and Android devices
+    return window.matchMedia("(max-width: 767px)").matches; // Adjust size as needed for mobile
 }
 
-// Step 2: Hide weather and news cards if on mobile
+// Apply mobile-specific layout changes
 function handleMobileLayout() {
-    if (isMobileDevice()) {
-        // Hide the weather and news cards
+    const isMobile = isMobileDevice();
+
+    if (isMobile) {
+        // Hide weather and news cards on mobile devices
         document.getElementById('weather-card').style.display = 'none';
         document.getElementById('news-card').style.display = 'none';
+
+        // Adjust orb and chatbox layout for a Siri-like interface
+        const orb = document.getElementById('orb');
+        const chatbox = document.getElementById('chatbox');
         
-        // Adjust the chatbox and orb layout to mimic Siri-like interface
-        document.getElementById('chatbox').style.width = '100%';
-        document.getElementById('chatbox').style.height = 'auto';
-        document.getElementById('chatbox').style.bottom = '0px';
-        document.getElementById('orb').style.position = 'fixed';
-        document.getElementById('orb').style.bottom = '20px';
-        document.getElementById('orb').style.right = '20px';
-        document.getElementById('orb').style.borderRadius = '50%';
-        document.getElementById('orb').style.backgroundColor = '#00A1FF';  // Custom color like Siri
-        document.getElementById('orb').style.padding = '15px';
+        // Make the orb like Siri's button (fixed, circular, bottom-right)
+        orb.style.position = 'fixed';
+        orb.style.bottom = '20px';
+        orb.style.right = '20px';
+        orb.style.width = '70px';
+        orb.style.height = '70px';
+        orb.style.borderRadius = '50%';
+        orb.style.backgroundColor = '#00A1FF';  // Custom color like Siri
+        orb.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.2)';
+        orb.style.cursor = 'pointer';
+        
+        // Make the chatbox look more like Siri's interface
+        chatbox.style.position = 'fixed';
+        chatbox.style.bottom = '90px'; // Keep space for the orb
+        chatbox.style.left = '10%';
+        chatbox.style.width = '80%';
+        chatbox.style.height = '200px';
+        chatbox.style.backgroundColor = '#fff';
+        chatbox.style.borderRadius = '15px';
+        chatbox.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+        chatbox.style.padding = '20px';
+        chatbox.style.display = 'flex';
+        chatbox.style.flexDirection = 'column';
+        chatbox.style.justifyContent = 'flex-start';
     } else {
-        // Ensure the layout is reset on desktop
+        // Ensure the layout is reset on non-mobile (desktop) devices
         document.getElementById('weather-card').style.display = 'block';
         document.getElementById('news-card').style.display = 'block';
     }
@@ -214,6 +279,9 @@ function handleMobileLayout() {
 
 // Call the function on page load
 window.onload = handleMobileLayout;
+
+// Also call it when the window is resized to adjust dynamically
+window.onresize = handleMobileLayout;
 
       
         const apiKey = "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"; // Groq API key
