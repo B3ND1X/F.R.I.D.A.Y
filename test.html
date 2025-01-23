@@ -171,7 +171,7 @@
   <button onclick="initializePermissions()">Continue</button>
 </div>
     <script>
-      let microphonePermissionGranted = false;
+     let microphonePermissionGranted = false;
 
   // Improved mobile detection function
   function isMobile() {
@@ -195,26 +195,50 @@
     });
   }
 
-  // Handle permissions initialization
+  // Request geolocation access
+  function requestGeolocationAccess() {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        console.error("Geolocation is not supported by this browser.");
+        reject("Geolocation not supported");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          console.log("Geolocation access granted:", position);
+          resolve(position);
+        },
+        (err) => {
+          console.error("Geolocation access denied:", err);
+          reject(err);
+        }
+      );
+    });
+  }
+
+  // Initialize permissions (used for mobile and desktop)
   async function initializePermissions() {
     document.getElementById('mobilePopup').style.display = 'none';
     try {
       await requestMicrophoneAccess();
       console.log("Microphone permissions granted.");
+      await requestGeolocationAccess();
+      console.log("Geolocation permissions granted.");
     } catch (error) {
       console.error("Error during permissions initialization:", error);
     }
   }
 
-  // Display popup only on mobile
+  // Display popup only on mobile and directly request permissions on desktop
   window.onload = () => {
     if (isMobile()) {
+      // Show the popup on mobile devices
       document.getElementById('mobilePopup').style.display = 'flex';
     } else {
-      console.log('Desktop detected: Requesting microphone access directly.');
-      requestMicrophoneAccess()
-        .then(() => console.log('Microphone ready on desktop.'))
-        .catch(err => console.error('Error with desktop microphone:', err));
+      // Directly initialize permissions on desktop
+      console.log('Desktop detected: Requesting permissions directly.');
+      initializePermissions();
     }
   };
         const apiKey = "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"; // Groq API key
