@@ -187,50 +187,62 @@
 
     <script>
 
-        // Function to check if the user is on a mobile device (specifically iOS)
-function isMobileDevice() {
-    return /iPhone|iPad|iPod/i.test(navigator.userAgent);
-}
-
-// Function to display the permission modal on mobile devices
-function showPermissionModal() {
-    const modal = document.getElementById("permissionModal");
-    modal.style.display = "flex";
-}
-
-// Event listener to handle permission granting
-document.getElementById("grantPermissions").addEventListener("click", () => {
-    // Request geolocation permission
-    if (navigator.geolocation) {
+   function requestPermissions() {
+    if (isMobile()) {
+        // Request Geolocation permission
         navigator.geolocation.getCurrentPosition(
-            (position) => {
-                console.log("Geolocation granted:", position);
-                // You can use this data for your assistant logic (e.g., weather, etc.)
+            function(position) {
+                console.log('Geolocation permission granted');
+                // Geolocation is granted, now we can use it
+                geolocationGranted = true;
             },
-            (error) => {
-                console.error("Geolocation permission denied:", error);
+            function(error) {
+                console.error('Geolocation permission denied');
+                geolocationGranted = false;
             }
         );
-    }
 
-    // Play activation sound
-    const activationSound = new Audio("path/to/activation.wav");
-    activationSound.play()
-        .then(() => {
-            console.log("Sound played successfully.");
-        })
-        .catch((err) => {
-            console.error("Error playing sound:", err);
+        // Request Audio Permission (by trying to play the sound)
+        const audioTest = new Audio('activation.wav');
+        audioTest.play().then(() => {
+            console.log('Audio permission granted');
+            audioPermissionGranted = true;
+        }).catch((error) => {
+            console.error('Audio permission denied', error);
+            audioPermissionGranted = false;
         });
 
-    // Close the modal once permissions are granted
-    const modal = document.getElementById("permissionModal");
-    modal.style.display = "none";
-});
+        // Show a pop-up to inform the user to grant permissions
+        let popup = document.createElement("div");
+        popup.id = "permissions-popup";
+        popup.innerHTML = `
+            <div>
+                <p>Please grant the necessary permissions for geolocation and sound to use this feature.</p>
+                <button onclick="grantPermissions()">Grant Permissions</button>
+            </div>
+        `;
+        document.body.appendChild(popup);
+    }
+}
 
-// Check if the user is on a mobile device, and if so, show the permission modal
-if (isMobileDevice()) {
-    showPermissionModal();
+function grantPermissions() {
+    // Close the pop-up
+    let popup = document.getElementById("permissions-popup");
+    if (popup) {
+        popup.style.display = "none";
+    }
+
+    // Once permissions are granted, proceed with any necessary functionality
+    if (geolocationGranted && audioPermissionGranted) {
+        // Permissions granted, now you can start detecting the wake word and playing the sound
+        console.log("Permissions granted. Ready to detect wake word and play activation sound.");
+    } else {
+        console.log("Permissions not granted. Please try again.");
+    }
+}
+
+function isMobile() {
+    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 }
         
         const apiKey = "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"; // Groq API key
