@@ -1,5 +1,6 @@
 <html lang="en">
 <head>
+     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
     <script src="chrome-extension://mooikfkahbdckldjjndioackbalphokd/assets/prompt.js"></script>
     <style type="text/css">
         .fc-ab-root { display: none !important } 
@@ -118,7 +119,44 @@
             z-index: -1;
         }
 
-        
+          /* Gear icon style */
+        #gear-icon {
+            font-size: 24px; /* Smaller size */
+            cursor: pointer;
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            z-index: 10;
+        }
+
+        /* Settings modal style */
+        #settings-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        #settings-content {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            width: 300px;
+        }
+
+        #settings-content label {
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        #settings-content button {
+            margin-top: 10px;
+        }
     </style>
 </head>
 <body>
@@ -142,6 +180,52 @@
     </div>
 
     <div id="orb"></div> <!-- Orb in the background -->
+      <!-- Gear Icon -->
+    <div id="gear-icon">
+        <i class="fas fa-cogs"></i>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settings-modal">
+        <div id="settings-content">
+            <h3>Settings</h3>
+
+            <!-- Permissions -->
+            <label>
+                Enable Geolocation
+                <input type="checkbox" id="geolocation-checkbox" />
+            </label>
+
+            <label>
+                Enable Microphone Access
+                <input type="checkbox" id="mic-checkbox" />
+            </label>
+
+            <label>
+                Enable Audio Access
+                <input type="checkbox" id="audio-checkbox" />
+            </label>
+
+            <label>
+                Enable TTS Access
+                <input type="checkbox" id="tts-checkbox" />
+            </label>
+
+            <label>
+                Enable STT Access
+                <input type="checkbox" id="stt-checkbox" />
+            </label>
+
+            <!-- File system permissions -->
+            <label>
+                Enable Read/Write/Execute Permissions
+                <input type="checkbox" id="file-permissions-checkbox" />
+            </label>
+
+            <button onclick="applySettings()">Save Settings</button>
+        </div>
+    </div>
+
     <script>
         const apiKey = "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"; // Groq API key
         const weatherApiKey = '80445369031848dbad520436251201'; // Weather API key
